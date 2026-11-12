@@ -591,7 +591,7 @@ document.addEventListener('keydown', e => {
 
 // ───────── 방문 찾기 ─────────
 function setCenter(lat, lng, label) { center = { lat, lng, label }; $('placeStat').textContent = `기준점: ${label}`; }
-const KAKAO_KEY = '';   // 여기에 카카오 JavaScript 키를 넣으면 모든 사용자에게 적용됨
+const KAKAO_KEY = 'eea86526a2b360f269bf5b8b46889357';   // 여기에 카카오 JavaScript 키를 넣으면 모든 사용자에게 적용됨
 function kakaoKey() { try { return localStorage.getItem('kakaoKey') || KAKAO_KEY; } catch (e) { return KAKAO_KEY; } }
 let kakaoReady = null;
 function loadKakao() {
