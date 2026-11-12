@@ -200,15 +200,6 @@
     </div>
     <div class="stat" id="placeStat">지도를 누르면 그 위치가 기준점이 됩니다.</div>
     <div class="chips" id="placeList"></div>
-    <details class="help" style="margin:12px 0 0">
-      <summary>한국 주소·가게 이름 정확하게 찾기 (카카오 키)</summary>
-      <p class="stat">기본 검색(OpenStreetMap)은 한국 도로명 주소와 가게 이름을 잘 못 찾습니다. 카카오 JavaScript 키를 넣으면 카카오맵과 같은 검색을 씁니다. 키는 이 기기에만 저장됩니다.</p>
-      <div class="row">
-        <input type="text" id="kakaoKey" placeholder="카카오 JavaScript 키" autocomplete="off" aria-label="카카오 JavaScript 키">
-        <button class="btn" id="kakaoSave" style="flex:0 0 auto">저장</button>
-      </div>
-      <div class="stat" id="kakaoStat"></div>
-    </details>
     <div class="row">
       <div><label class="f" for="radius">반경 (m)</label><input type="number" id="radius" value="200" min="10" step="10"></div>
       <div><label class="f" for="minStay">최소 체류 (분)</label><input type="number" id="minStay" value="0" min="0" step="1"></div>
@@ -592,7 +583,8 @@ document.addEventListener('keydown', e => {
 // ───────── 방문 찾기 ─────────
 function setCenter(lat, lng, label) { center = { lat, lng, label }; $('placeStat').textContent = `기준점: ${label}`; }
 const KAKAO_KEY = 'eea86526a2b360f269bf5b8b46889357';   // 여기에 카카오 JavaScript 키를 넣으면 모든 사용자에게 적용됨
-function kakaoKey() { try { return localStorage.getItem('kakaoKey') || KAKAO_KEY; } catch (e) { return KAKAO_KEY; } }
+function kakaoKey() { return KAKAO_KEY; }
+let kakaoFail = false;
 let kakaoReady = null;
 function loadKakao() {
   if (kakaoReady) return kakaoReady;
@@ -607,9 +599,10 @@ function loadKakao() {
 }
 async function kakaoSearch(q) {
   try { await loadKakao(); } catch (e) {
-    $('kakaoStat').innerHTML = '<span class="err">카카오 검색을 불러오지 못했습니다. 키, 사이트 도메인 등록, 카카오맵 사용 설정을 확인해 주세요.</span>';
+    kakaoFail = true;
     return [];
   }
+  kakaoFail = false;
   const S = kakao.maps.services, OK = S.Status.OK;
   const addr = await new Promise(r => new S.Geocoder().addressSearch(q, (d, st) => r(st === OK ? d : [])));
   const kw = await new Promise(r => new S.Places().keywordSearch(q, (d, st) => r(st === OK ? d : [])));
@@ -658,7 +651,7 @@ async function findPlace() {
       if (found.length) approx = qq;
     }
   }
-  if (!found.length) { $('placeStat').innerHTML = '<span class="err">그 이름의 장소를 찾지 못했습니다. 동네 이름을 붙여 보거나(예: 역삼동 스타벅스) 지도를 직접 눌러 주세요.</span>'; return; }
+  if (!found.length) { $('placeStat').innerHTML = '<span class="err">그 이름의 장소를 찾지 못했습니다. 지도를 직접 눌러 주세요.' + (kakaoFail ? ' (카카오 검색 연결 안 됨)' : '') + '</span>'; return; }
   const choose = i => {
     const f = found[i];
     setCenter(f.lat, f.lng, f.label);
@@ -741,14 +734,6 @@ function saveBlob(blob, name) {
 }
 $('placeGo').onclick = findPlace;
 $('placeQ').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); findPlace(); } });
-$('kakaoKey').value = kakaoKey();
-$('kakaoStat').textContent = kakaoKey() ? '카카오 검색 사용 중' : '';
-$('kakaoSave').onclick = () => {
-  const k = $('kakaoKey').value.trim();
-  try { k ? localStorage.setItem('kakaoKey', k) : localStorage.removeItem('kakaoKey'); } catch (e) { /* 저장 불가 */ }
-  kakaoReady = null;
-  $('kakaoStat').textContent = k ? '저장했습니다. 이제 카카오 검색을 먼저 씁니다.' : '키를 지웠습니다.';
-};
 $('placeClear').onclick = () => { $('placeQ').value = ''; $('placeList').innerHTML = ''; $('placeQ').focus(); };
 $('search').onclick = runSearch;
 $('inRange').onchange = () => center && runSearch();
