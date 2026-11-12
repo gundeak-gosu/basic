@@ -28,7 +28,7 @@
   header h1 { font-size: 30px; line-height: 1.15; margin: 10px 0 4px; letter-spacing: -.02em; }
   header p { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
 
-  .steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 14px; }
+  .steps { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 14px; }
   .steps button { border: 1px solid var(--line); background: var(--card); color: var(--muted); border-radius: 12px; padding: 8px 4px;
     font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 1px; }
   .steps button b { font-size: 12px; opacity: .7; }
@@ -91,6 +91,26 @@
   .visit .m { color: var(--muted); font-size: 12px; }
   .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--soft); color: var(--muted); margin-left: 4px; }
   .tag.stay { color: var(--ok); }
+  .card h3 { font-size: 16px; margin: 22px 0 8px; }
+  .card h3 small { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .tile { background: var(--soft); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+  .tile span { display: block; font-size: 12px; color: var(--muted); }
+  .tile b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; line-height: 1.25; margin: 2px 0; overflow-wrap: anywhere; }
+  .tile small { display: block; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+  .bars { display: flex; flex-direction: column; gap: 5px; }
+  .bar-row { display: grid; grid-template-columns: minmax(64px, 36%) 1fr auto; gap: 8px; align-items: center; font-size: 13px; }
+  .bar-row.click { cursor: pointer; border-radius: 8px; padding: 2px 4px; margin: 0 -4px; }
+  .bar-row.click:hover { background: var(--soft); }
+  .bar-row .lb { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; line-height: 1.3; }
+  .bar-row .lb small { color: var(--muted); }
+  .bar-row .tr { height: 10px; background: var(--soft); border-radius: 99px; overflow: hidden; }
+  .bar-row .tr i { display: block; height: 100%; background: var(--route); border-radius: 99px; }
+  .bar-row .v { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; text-align: right; white-space: nowrap; }
+  .hist { display: flex; align-items: flex-end; gap: 2px; height: 110px; border-bottom: 1px solid var(--line); }
+  .hist div { flex: 1; background: var(--route); border-radius: 3px 3px 0 0; min-height: 1px; opacity: .85; }
+  .hist-x { display: flex; gap: 2px; font-size: 10px; color: var(--muted); }
+  .hist-x span { flex: 1; text-align: center; }
 
   #out video { width: 100%; border-radius: 12px; background: #000; display: block; margin-top: 12px; }
   .bar { height: 8px; background: var(--soft); border-radius: 99px; overflow: hidden; margin-top: 10px; }
@@ -112,10 +132,11 @@
 
   <nav class="steps" id="steps">
     <button data-s="1" class="on"><b>1</b>가져오기</button>
-    <button data-s="2" disabled><b>2</b>날짜 선택</button>
+    <button data-s="2" disabled><b>2</b>날짜</button>
     <button data-s="3" disabled><b>3</b>미리보기</button>
-    <button data-s="4" disabled><b>4</b>방문 찾기</button>
+    <button data-s="4" disabled><b>4</b>방문찾기</button>
     <button data-s="5" disabled><b>5</b>내보내기</button>
+    <button data-s="6" disabled><b>6</b>통계</button>
   </nav>
 
   <!-- 1 가져오기 -->
@@ -229,6 +250,35 @@
     <div id="out"></div>
   </section>
 
+  <!-- 6 통계 -->
+  <section class="card step" data-step="6">
+    <h2>통계</h2>
+    <p class="lead" id="stRange"></p>
+    <div class="tiles" id="stTiles"></div>
+    <h3>이동수단별 <small id="stModeNote"></small></h3>
+    <div class="bars" id="stModes"></div>
+    <h3>시간대별 이동 <small>이동한 시간 합계</small></h3>
+    <div class="hist" id="stHours"></div><div class="hist-x" id="stHoursX"></div>
+    <h3>요일별 이동</h3>
+    <div class="bars" id="stWeek"></div>
+    <h3 id="stDaysTitle">날짜별 이동거리</h3>
+    <div class="bars" id="stDays"></div>
+    <h3>방문한 지역·장소 순위</h3>
+    <div class="row">
+      <div><label class="f" for="stLevel">단위</label>
+        <select id="stLevel"><option value="0">나라</option><option value="1">시·도</option><option value="2" selected>시·군·구</option><option value="3">읍·면·동</option><option value="4">장소</option></select></div>
+      <div><label class="f" for="stSort">순서</label>
+        <select id="stSort"><option value="ms">머문 시간</option><option value="n">방문 횟수</option><option value="days">방문 일수</option></select></div>
+    </div>
+    <label class="check"><input type="checkbox" id="stNoHome"> 집·직장 제외</label>
+    <div class="stat" id="geoStat"></div>
+    <div class="bars" id="stPlaces" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" id="stMore">더 보기</button>
+      <button class="btn" id="stCsv">순위 CSV 저장</button>
+    </div>
+  </section>
+
   <section class="card" id="stageCard">
     <canvas id="stage" width="1280" height="720"></canvas>
     <div class="player">
@@ -273,7 +323,7 @@ function dist(aLat, aLng, bLat, bLng) {
 }
 function lowerBound(arr, t) { let lo = 0, hi = arr.length; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m].t < t) lo = m + 1; else hi = m; } return lo; }
 
-const DATA = { points: [], visits: [] };
+const DATA = { points: [], visits: [], acts: [] };
 let P = [], V = [], range = [0, 0];
 let center = null, lastResults = [];
 
@@ -319,7 +369,11 @@ function ingestSegment(seg) {
     const c = seg.visit.topCandidate || {};
     addVisit(st, et, parseLatLng(c.placeLocation), c.semanticType && SEM[c.semanticType] || '');
   }
-  if (seg.activity) { addPoint(st, parseLatLng(seg.activity.start)); addPoint(et, parseLatLng(seg.activity.end)); }
+  if (seg.activity) {
+    addPoint(st, parseLatLng(seg.activity.start)); addPoint(et, parseLatLng(seg.activity.end));
+    const ty = seg.activity.topCandidate && seg.activity.topCandidate.type;
+    if (ty && isFinite(st) && isFinite(et)) DATA.acts.push({ s: st, e: et, type: String(ty).toUpperCase() });
+  }
   if (Array.isArray(seg.timelinePath)) for (const p of seg.timelinePath) {
     const t = p.time ? parseTime(p.time) : st + (+p.durationMinutesOffsetFromStartTime || 0) * 60000;
     addPoint(t, parseLatLng(p.point));
@@ -341,6 +395,7 @@ function ingest(json) {
       const a = o.activitySegment, d = a.duration || {};
       const st = parseTime(d.startTimestamp ?? d.startTimestampMs), et = parseTime(d.endTimestamp ?? d.endTimestampMs);
       addPoint(st, parseLatLng(a.startLocation)); addPoint(et, parseLatLng(a.endLocation));
+      if (a.activityType && isFinite(st) && isFinite(et)) DATA.acts.push({ s: st, e: et, type: String(a.activityType).toUpperCase() });
       const raw = a.simplifiedRawPath && a.simplifiedRawPath.points;
       if (raw && raw.length) raw.forEach(p => addPoint(parseTime(p.timestamp ?? p.timestampMs), e7(p.latE7, p.lngE7)));
       else if (a.waypointPath && a.waypointPath.waypoints) {
@@ -374,6 +429,7 @@ async function loadFiles(files) {
 function finishLoad(label) {
   DATA.points.sort((a, b) => a.t - b.t);
   DATA.visits.sort((a, b) => a.s - b.s);
+  DATA.acts.sort((a, b) => a.s - b.s);
   if (!DATA.points.length) { $('loadStat').innerHTML = '<span class="err">이 파일에서 위치 기록을 찾지 못했습니다. 타임라인 내보내기 파일인지 확인해 주세요.</span>'; return; }
   const first = DATA.points[0].t, last = DATA.points[DATA.points.length - 1].t;
   $('loadStat').innerHTML = `✅ <b>${esc(label)}</b><br>위치 ${DATA.points.length.toLocaleString()}개 · 방문 ${DATA.visits.length.toLocaleString()}곳 · ${fmtDate(first)} ~ ${fmtDate(last)}`;
@@ -384,7 +440,7 @@ function finishLoad(label) {
   go(2);
 }
 function clearData() {
-  DATA.points = []; DATA.visits = []; P = []; V = []; center = null; lastResults = [];
+  DATA.points = []; DATA.visits = []; DATA.acts = []; P = []; V = []; center = null; lastResults = [];
   $('searchOut').innerHTML = ''; $('out').innerHTML = '';
 }
 
@@ -403,6 +459,7 @@ function go(n) {
   }
   if (n === 3 || n === 5) { here.after($('stageCard')); if (!R) prepare(); drawStage(); }
   if (n === 5) updateRecInfo();
+  if (n === 6) renderStats();
   if (n !== 3 && n !== 5) pause();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -484,6 +541,7 @@ function applyRange() {
   if (P.length && step === 4) { fitPath(); map._fitted = true; }
   buildWarp();
   pause(); prepare(); seekU(0);
+  if (step === 6) renderStats();
 }
 
 // ───────── 시간 압축 (머문 시간은 짧게, 이동은 길게) ─────────
@@ -1014,6 +1072,248 @@ $('record').onclick = () => recordVideo().catch(e => {
   $('out').innerHTML = `<div class="stat err">동영상을 만들지 못했습니다: ${esc(e.message)}</div>`; $('record').disabled = false;
 });
 
+// ───────── 통계 ─────────
+const MODE = { WALKING: '도보', ON_FOOT: '도보', RUNNING: '도보', HIKING: '도보', CYCLING: '자전거', ON_BICYCLE: '자전거',
+  IN_PASSENGER_VEHICLE: '자동차', IN_VEHICLE: '자동차', DRIVING: '자동차', IN_TAXI: '자동차', IN_CAR: '자동차', MOTORCYCLING: '오토바이',
+  IN_BUS: '버스', IN_SUBWAY: '지하철', IN_TRAM: '지하철', IN_TRAIN: '기차', IN_HIGH_SPEED_TRAIN: '기차', FLYING: '비행기', IN_FERRY: '배', SAILING: '배' };
+const MODE_ICON = { 도보: '🚶', 자전거: '🚲', 자동차: '🚗', 버스: '🚌', 지하철: '🚇', 기차: '🚆', 비행기: '✈️', 배: '⛴️', 오토바이: '🛵', 기타: '·' };
+const guessMode = kmh => kmh <= 7 ? '도보' : kmh <= 20 ? '자전거' : kmh <= 130 ? '자동차' : kmh <= 330 ? '기차' : '비행기';
+const fmtKm = m => { const k = m / 1000; return (k < 10 ? k.toFixed(1) : Math.round(k).toLocaleString()) + ' km'; };
+const fmtH = ms => fmtDur(ms) || '0분';
+
+function deriveStays(pts) {                 // 방문 기록이 없는 파일(Records.json 등)은 점에서 머문 곳을 찾음
+  const out = []; let i = 0;
+  while (i < pts.length) {
+    let j = i;
+    while (j + 1 < pts.length && dist(pts[i].lat, pts[i].lng, pts[j + 1].lat, pts[j + 1].lng) <= 150) j++;
+    if (pts[j].t - pts[i].t >= 10 * 60e3) {
+      let la = 0, ln = 0; for (let k = i; k <= j; k++) { la += pts[k].lat; ln += pts[k].lng; }
+      out.push({ s: pts[i].t, e: pts[j].t, lat: la / (j - i + 1), lng: ln / (j - i + 1), name: '' });
+      i = j + 1;
+    } else i++;
+  }
+  return out;
+}
+
+let ST = null, stShow = 20;
+function computeStats() {
+  const [rs, re] = range;
+  const days = new Map(), hours = new Float64Array(24), wk = new Float64Array(7), wkD = new Float64Array(7);
+  let totalD = 0, moveMs = 0;
+  const trips = []; let cur = null;
+  const C = new Float64Array(P.length);       // 누적 이동거리
+  for (let i = 0; i < P.length - 1; i++) {
+    const a = P[i], b = P[i + 1], dt = b.t - a.t, d = dist(a.lat, a.lng, b.lat, b.lng);
+    const moving = dt > 0 && dt <= 2 * 3600e3 && d >= 60 && d / dt * 3600 >= 1.5;
+    C[i + 1] = C[i] + (dt <= 2 * 3600e3 ? d : 0);
+    if (!moving) continue;
+    totalD += d; moveMs += dt;
+    const md = new Date(a.t + dt / 2);
+    hours[md.getHours()] += dt; wk[md.getDay()] += dt; wkD[md.getDay()] += d;
+    const k = fmtDate(md.getTime()); days.set(k, (days.get(k) || 0) + d);
+    if (cur && a.t - cur.e <= 10 * 60e3) { cur.e = b.t; cur.d += d; cur.lat1 = b.lat; cur.lng1 = b.lng; }
+    else { cur = { s: a.t, e: b.t, d, lat0: a.lat, lng0: a.lng, lat1: b.lat, lng1: b.lng }; trips.push(cur); }
+  }
+  const distBetween = (t0, t1) => C[Math.max(0, lowerBound(P, t1 + 1) - 1)] - C[Math.max(0, lowerBound(P, t0) )];
+
+  // 이동수단: 타임라인에 기록된 활동이 있으면 그것을, 없으면 속도로 추정
+  const acts = DATA.acts.filter(a => a.e >= rs && a.s <= re);
+  const modes = new Map(), useActs = acts.length > 0;
+  const addMode = (m, ms, d) => { const o = modes.get(m) || { ms: 0, d: 0, n: 0 }; o.ms += ms; o.d += d; o.n++; modes.set(m, o); };
+  if (useActs) for (const a of acts) addMode(MODE[a.type] || '기타', Math.min(a.e, re) - Math.max(a.s, rs), Math.max(0, distBetween(Math.max(a.s, rs), Math.min(a.e, re))));
+  for (const t of trips) {
+    const kmh = t.d / Math.max(1, t.e - t.s) * 3600;
+    t.mode = guessMode(kmh); t.est = true;
+    if (useActs) {
+      const mid = (t.s + t.e) / 2, a = acts.find(a => a.s <= mid && mid <= a.e);
+      if (a) { t.mode = MODE[a.type] || '기타'; t.est = false; }
+    }
+    if (!useActs) addMode(t.mode, t.e - t.s, t.d);
+  }
+
+  // 머문 곳 → 장소 묶음
+  const stays = (V.length ? V : deriveStays(P)).map(v => ({ ...v, cs: Math.max(v.s, rs), ce: Math.min(v.e, re) })).filter(v => v.ce >= v.cs);
+  const clusters = [], grid = new Map();
+  const cellOf = (lat, lng) => [Math.floor(lat / 0.002), Math.floor(lng / 0.0025)];
+  for (const v of stays) {
+    const [cy, cx] = cellOf(v.lat, v.lng); let c = null;
+    for (let dy = -1; dy <= 1 && !c; dy++) for (let dx = -1; dx <= 1 && !c; dx++)
+      for (const k of grid.get((cy + dy) + ':' + (cx + dx)) || []) if (dist(k.lat, k.lng, v.lat, v.lng) <= 150) { c = k; break; }
+    if (!c) {
+      c = { lat: v.lat, lng: v.lng, n: 0, ms: 0, days: new Set(), names: new Map(), first: v.s, last: v.s };
+      clusters.push(c);
+      const key = cy + ':' + cx; grid.set(key, [...(grid.get(key) || []), c]);
+    }
+    c.n++; c.ms += v.ce - v.cs; c.days.add(fmtDate(v.s)); c.last = Math.max(c.last, v.s); c.first = Math.min(c.first, v.s);
+    if (v.name) c.names.set(v.name, (c.names.get(v.name) || 0) + 1);
+  }
+  for (const c of clusters) c.label = [...c.names.entries()].sort((a, b) => b[1] - a[1]).map(x => x[0])[0] || '';
+  clusters.sort((a, b) => b.ms - a.ms);
+  const home = clusters.find(c => c.label.startsWith('집')) || clusters[0];
+  ST = { trips, modes, useActs, totalD, moveMs, days, hours, wk, wkD, clusters, stays, home };
+}
+
+// 주소(지역 이름) 찾기: 카카오 → 안 되면 OpenStreetMap (1초에 1곳)
+const GEO = new Map();
+try { for (const [k, v] of Object.entries(JSON.parse(localStorage.getItem('geoCache') || '{}'))) GEO.set(k, v); } catch (e) { /* 저장소 없음 */ }
+const gkey = c => c.lat.toFixed(4) + ',' + c.lng.toFixed(4);
+let geoSaveT = 0;
+function saveGeo() { clearTimeout(geoSaveT); geoSaveT = setTimeout(() => { try { localStorage.setItem('geoCache', JSON.stringify(Object.fromEntries([...GEO].slice(-3000)))); } catch (e) { /* 저장 실패 무시 */ } }, 1000); }
+let lastOsm = 0;
+async function reverseGeo(c) {
+  if (KAKAO_KEY && !kakaoFail) {
+    try {
+      await loadKakao();
+      const Sv = kakao.maps.services, g = new Sv.Geocoder(), OK = Sv.Status.OK;
+      const reg = await new Promise(r => g.coord2RegionCode(c.lng, c.lat, (d, st) => r(st === OK ? d : [])));
+      const h = reg.find(x => x.region_type === 'H') || reg[0];
+      if (h) {
+        const ad = await new Promise(r => g.coord2Address(c.lng, c.lat, (d, st) => r(st === OK ? d : [])));
+        const a0 = ad[0] || {}, ra = a0.road_address;
+        return { country: '대한민국', l1: h.region_1depth_name, l2: h.region_2depth_name, l3: h.region_3depth_name,
+          place: (ra && ra.building_name) || (ra && ra.address_name) || (a0.address && a0.address.address_name) || '' };
+      }
+    } catch (e) { kakaoFail = true; }
+  }
+  const wait = lastOsm + 1100 - Date.now(); if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  lastOsm = Date.now();
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=ko&lat=${c.lat}&lon=${c.lng}`);
+    if (!r.ok) return null;
+    const j = await r.json(), a = j.address || {};
+    const l1 = a.province || a.state || a.city || a.region || '';
+    const l2 = [a.city && a.city !== l1 ? a.city : '', a.county || '', a.borough || a.city_district || ''].filter(Boolean).join(' ');
+    const l3 = a.town || a.village || a.suburb || a.quarter || a.neighbourhood || '';
+    const place = j.name || a.amenity || a.shop || a.building || a.tourism || a.leisure || [a.road, a.house_number].filter(Boolean).join(' ');
+    return { country: a.country || '', l1, l2, l3, place };
+  } catch (e) { return null; }
+}
+let geoRun = 0;
+async function geocodeClusters() {
+  const run = ++geoRun;
+  const todo = ST.clusters.slice(0, 300).filter(c => !GEO.has(gkey(c)));
+  let done = 0, fail = 0;
+  for (const c of todo) {
+    if (run !== geoRun || step !== 6) return;
+    $('geoStat').textContent = `지역 이름 확인 중… ${done}/${todo.length}` + (kakaoFail ? ' (OpenStreetMap은 1초에 1곳씩)' : '');
+    const r = await reverseGeo(c);
+    if (r) { GEO.set(gkey(c), r); saveGeo(); } else fail++;
+    done++;
+    if (done % 3 === 0 || done === todo.length) renderPlaces();
+  }
+  if (run !== geoRun) return;
+  if (todo.length && done > fail && step === 6) { renderStats(); }   // 이름이 들어간 요약으로 다시 그림
+  $('geoStat').textContent = todo.length ? `지역 이름 확인 완료${fail ? ` (${fail}곳 실패)` : ''}` : '';
+  renderPlaces();
+}
+
+const LEVEL_NAMES = ['나라', '시·도', '시·군·구', '읍·면·동', '장소'];
+function placeGroups() {
+  const lvl = +$('stLevel').value, noHome = $('stNoHome').checked;
+  const groups = new Map();
+  for (const c of ST.clusters) {
+    if (noHome && /^(집|직장)/.test(c.label)) continue;
+    const g = GEO.get(gkey(c));
+    let key, name, sub;
+    if (lvl === 4) {
+      key = gkey(c);
+      name = c.label ? (g && g.place ? `${c.label} · ${g.place}` : c.label) : (g ? (g.place || [g.l2, g.l3].filter(Boolean).join(' ')) : `${c.lat.toFixed(4)}, ${c.lng.toFixed(4)}`);
+      sub = g ? [g.l1, g.l2, g.l3].filter(Boolean).join(' ') : '';
+    } else if (!g) { key = '?'; name = '(확인 전)'; sub = ''; }
+    else {
+      const parts = [g.country, g.l1, g.l2, g.l3];
+      key = parts.slice(0, lvl + 1).join('|');
+      name = parts[lvl] || '(이름 없음)';
+      sub = parts.slice(Math.max(0, lvl - 1), lvl).filter(Boolean).join(' ');
+    }
+    let o = groups.get(key);
+    if (!o) { o = { key, name, sub, ms: 0, n: 0, days: new Set(), places: 0, c }; groups.set(key, o); }
+    o.ms += c.ms; o.n += c.n; o.places++; c.days.forEach(d => o.days.add(d));
+  }
+  const sort = $('stSort').value;
+  return [...groups.values()].sort((a, b) => sort === 'n' ? b.n - a.n : sort === 'days' ? b.days.size - a.days.size : b.ms - a.ms);
+}
+function renderPlaces() {
+  if (!ST) return;
+  const list = placeGroups(), sort = $('stSort').value, lvl = +$('stLevel').value;
+  const val = g => sort === 'n' ? g.n : sort === 'days' ? g.days.size : g.ms;
+  const max = Math.max(1, ...list.map(val));
+  $('stPlaces').innerHTML = list.length ? list.slice(0, stShow).map((g, i) => `
+    <div class="bar-row ${lvl === 4 ? 'click' : ''}" data-k="${esc(g.key)}" title="${esc(g.name)}">
+      <span class="lb">${i + 1}. ${esc(g.name)} ${g.sub ? `<small>${esc(g.sub)}</small>` : ''}</span>
+      <span class="tr"><i style="width:${(val(g) / max * 100).toFixed(1)}%"></i></span>
+      <span class="v">${g.n}번 · ${fmtH(g.ms)} · ${g.days.size}일${lvl < 4 ? ` · ${g.places}곳` : ''}</span>
+    </div>`).join('') : '<div class="stat">이 기간에 머문 곳이 없습니다.</div>';
+  $('stMore').hidden = list.length <= stShow;
+  if (lvl === 4) $('stPlaces').querySelectorAll('.bar-row').forEach(el => el.onclick = () => {
+    const g = list.find(x => x.key === el.dataset.k); if (!g) return;
+    setCenter(g.c.lat, g.c.lng, g.name); go(4); map.setView([g.c.lat, g.c.lng], 16); runSearch();
+  });
+}
+function barList(rows, fmtV) {
+  const max = Math.max(1, ...rows.map(r => r.v));
+  return rows.map(r => `<div class="bar-row"><span class="lb">${r.label}</span><span class="tr"><i style="width:${(r.v / max * 100).toFixed(1)}%"></i></span><span class="v">${fmtV(r)}</span></div>`).join('');
+}
+function renderStats() {
+  if (!P.length) { $('stRange').textContent = '먼저 파일을 불러오고 날짜를 선택해 주세요.'; return; }
+  computeStats();
+  const [rs, re] = range, S = ST;
+  const nDays = Math.max(1, Math.round((re - rs) / 864e5));
+  const recDays = new Set(P.map(p => fmtDate(p.t))).size;
+  $('stRange').textContent = `${fmtDT(rs)} ~ ${fmtDT(re)} (날짜는 ② 날짜에서 바꿀 수 있습니다)`;
+  const dayArr = [...S.days.entries()].sort((a, b) => b[1] - a[1]);
+  const longest = S.trips.slice().sort((a, b) => b.d - a.d)[0];
+  let far = null;
+  if (S.home) for (const c of S.clusters) { const d = dist(S.home.lat, S.home.lng, c.lat, c.lng); if (!far || d > far.d) far = { d, c }; }
+  const farName = far ? (far.c.label || (GEO.get(gkey(far.c)) || {}).place || [(GEO.get(gkey(far.c)) || {}).l2, (GEO.get(gkey(far.c)) || {}).l3].filter(Boolean).join(' ') || '') : '';
+  const peak = S.hours.indexOf(Math.max(...S.hours));
+  const top = S.clusters[0];
+  const tiles = [
+    ['기간', `${nDays}일`, `기록 있는 날 ${recDays}일`],
+    ['총 이동거리', fmtKm(S.totalD), `하루 평균 ${fmtKm(S.totalD / nDays)}`],
+    ['이동한 시간', fmtH(S.moveMs), `하루 평균 ${fmtH(S.moveMs / nDays)}`],
+    ['이동 횟수', `${S.trips.length.toLocaleString()}번`, `평균 ${S.trips.length ? fmtKm(S.totalD / S.trips.length) : '-'}`],
+    ['머문 장소', `${S.clusters.length.toLocaleString()}곳`, `머문 기록 ${S.stays.length.toLocaleString()}번`],
+    ['가장 오래 머문 곳', top ? (top.label || '1위 장소') : '-', top ? fmtH(top.ms) : ''],
+    ['가장 많이 이동한 날', dayArr[0] ? dayArr[0][0].slice(5) : '-', dayArr[0] ? fmtKm(dayArr[0][1]) : ''],
+    ['가장 긴 이동', longest ? fmtKm(longest.d) : '-', longest ? `${fmtDate(longest.s).slice(5)} ${fmtTime(longest.s)} · ${fmtH(longest.e - longest.s)} · ${longest.mode}${longest.est ? '(추정)' : ''}` : ''],
+    [S.home && S.home.label.startsWith('집') ? '집에서 가장 먼 곳' : '주로 머문 곳에서 가장 먼 곳', far ? fmtKm(far.d) : '-', far ? `${farName}${farName ? ' · ' : ''}${fmtDate(far.c.first).slice(5)}` : ''],
+    ['이동이 가장 많은 시간대', S.moveMs ? `${peak}시~${peak + 1}시` : '-', S.moveMs ? fmtH(S.hours[peak]) : ''],
+  ];
+  $('stTiles').innerHTML = tiles.map(([a, b, c]) => `<div class="tile"><span>${a}</span><b>${esc(b)}</b><small>${esc(c)}</small></div>`).join('');
+
+  $('stModeNote').textContent = S.useActs ? '타임라인 기록 기준' : '속도로 추정 (도보 ~7km/h · 자전거 ~20 · 자동차 ~130 · 기차 ~330 · 그 이상 비행기)';
+  const modes = [...S.modes.entries()].sort((a, b) => b[1].ms - a[1].ms);
+  $('stModes').innerHTML = modes.length ? barList(modes.map(([m, o]) => ({ label: `${MODE_ICON[m] || ''} ${m}`, v: o.ms, o })),
+    r => `${fmtH(r.o.ms)} · ${fmtKm(r.o.d)} · ${r.o.n}번`) : '<div class="stat">이동 기록이 없습니다.</div>';
+
+  const hmax = Math.max(1, ...S.hours);
+  $('stHours').innerHTML = [...S.hours].map((v, h) => `<div style="height:${(v / hmax * 100).toFixed(1)}%" title="${h}시: ${fmtH(v)}"></div>`).join('');
+  $('stHoursX').innerHTML = Array.from({ length: 24 }, (_, h) => `<span>${h % 3 === 0 ? h : ''}</span>`).join('');
+  const order = [1, 2, 3, 4, 5, 6, 0];
+  $('stWeek').innerHTML = barList(order.map(d => ({ label: WD[d] + '요일', v: S.wk[d], d })), r => `${fmtH(S.wk[r.d])} · ${fmtKm(S.wkD[r.d])}`);
+
+  // 날짜별 (62일 넘으면 월별)
+  let rows = [...S.days.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1);
+  if (rows.length > 62) {
+    const mm = new Map(); for (const [k, v] of rows) mm.set(k.slice(0, 7), (mm.get(k.slice(0, 7)) || 0) + v);
+    rows = [...mm.entries()]; $('stDaysTitle').textContent = '월별 이동거리';
+  } else $('stDaysTitle').textContent = '날짜별 이동거리';
+  $('stDays').innerHTML = rows.length ? barList(rows.map(([k, v]) => ({ label: k.length > 7 ? k.slice(5) : k, v })), r => fmtKm(r.v)) : '<div class="stat">이동 기록이 없습니다.</div>';
+
+  stShow = 20;
+  renderPlaces();
+  geocodeClusters();
+}
+['stLevel', 'stSort', 'stNoHome'].forEach(id => $(id).addEventListener('change', () => { stShow = 20; renderPlaces(); }));
+$('stMore').onclick = () => { stShow += 30; renderPlaces(); };
+$('stCsv').onclick = () => {
+  const rows = [[LEVEL_NAMES[+$('stLevel').value], '상위 지역', '방문 횟수', '머문 시간(분)', '방문 일수', '장소 수']];
+  for (const g of placeGroups()) rows.push([g.name, g.sub, g.n, Math.round(g.ms / 60000), g.days.size, g.places]);
+  const csv = '﻿' + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  saveBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `방문순위-${LEVEL_NAMES[+$('stLevel').value]}.csv`);
+};
+
 // ───────── 샘플 데이터 ─────────
 function makeSample() {
   const home = [37.5133, 127.1001], work = [37.4979, 127.0276], cafe = [37.5045, 127.0249], gym = [37.5110, 127.0980], park = [37.5219, 127.1213];
@@ -1022,28 +1322,28 @@ function makeSample() {
   const base = new Date(); base.setHours(0, 0, 0, 0); base.setDate(base.getDate() - 6);
   const iso = t => new Date(t).toISOString();
   const visit = (s, e, p, sem) => segs.push({ startTime: iso(s), endTime: iso(e), visit: { topCandidate: { semanticType: sem || 'UNKNOWN', placeLocation: { latLng: fmt(...p) } } } });
-  const move = (s, e, a, b) => {
+  const move = (s, e, a, b, ty) => {
     const path = [], n = 14;
     for (let i = 0; i <= n; i++) {
       const k = i / n, wob = Math.sin(k * Math.PI) * 0.004;
       path.push({ point: fmt(a[0] + (b[0] - a[0]) * k + wob, a[1] + (b[1] - a[1]) * k - wob), time: iso(s + (e - s) * k) });
     }
-    segs.push({ startTime: iso(s), endTime: iso(e), activity: { start: { latLng: fmt(...a) }, end: { latLng: fmt(...b) } }, timelinePath: path });
+    segs.push({ startTime: iso(s), endTime: iso(e), activity: { start: { latLng: fmt(...a) }, end: { latLng: fmt(...b) }, topCandidate: { type: ty || 'WALKING' } }, timelinePath: path });
   };
   const H = 3600e3, M = 60e3;
   for (let d = 0; d < 7; d++) {
     const day = base.getTime() + d * 24 * H, j = (d * 7 % 11) * M;
     if (![0, 6].includes(new Date(day).getDay())) {
-      visit(day, day + 8 * H + j, home, 'HOME'); move(day + 8 * H + j, day + 8 * H + 40 * M + j, home, work);
+      visit(day, day + 8 * H + j, home, 'HOME'); move(day + 8 * H + j, day + 8 * H + 40 * M + j, home, work, 'IN_SUBWAY');
       visit(day + 8 * H + 40 * M + j, day + 12 * H, work, 'WORK'); move(day + 12 * H, day + 12 * H + 10 * M, work, cafe);
       visit(day + 12 * H + 10 * M, day + 13 * H, cafe); move(day + 13 * H, day + 13 * H + 10 * M, cafe, work);
-      visit(day + 13 * H + 10 * M, day + 18 * H + j, work, 'WORK'); move(day + 18 * H + j, day + 18 * H + 45 * M + j, work, gym);
-      visit(day + 18 * H + 45 * M + j, day + 20 * H, gym); move(day + 20 * H, day + 20 * H + 15 * M, gym, home);
+      visit(day + 13 * H + 10 * M, day + 18 * H + j, work, 'WORK'); move(day + 18 * H + j, day + 18 * H + 45 * M + j, work, gym, 'IN_SUBWAY');
+      visit(day + 18 * H + 45 * M + j, day + 20 * H, gym); move(day + 20 * H, day + 20 * H + 15 * M, gym, home, 'IN_BUS');
       visit(day + 20 * H + 15 * M, day + 24 * H - M, home, 'HOME');
     } else {
-      visit(day, day + 11 * H, home, 'HOME'); move(day + 11 * H, day + 11 * H + 25 * M, home, park);
-      visit(day + 11 * H + 25 * M, day + 15 * H, park); move(day + 15 * H, day + 15 * H + 50 * M, park, cafe);
-      visit(day + 15 * H + 50 * M, day + 17 * H, cafe); move(day + 17 * H, day + 17 * H + 50 * M, cafe, home);
+      visit(day, day + 11 * H, home, 'HOME'); move(day + 11 * H, day + 11 * H + 25 * M, home, park, 'CYCLING');
+      visit(day + 11 * H + 25 * M, day + 15 * H, park); move(day + 15 * H, day + 15 * H + 50 * M, park, cafe, 'IN_PASSENGER_VEHICLE');
+      visit(day + 15 * H + 50 * M, day + 17 * H, cafe); move(day + 17 * H, day + 17 * H + 50 * M, cafe, home, 'IN_PASSENGER_VEHICLE');
       visit(day + 17 * H + 50 * M, day + 24 * H - M, home, 'HOME');
     }
   }
