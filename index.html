@@ -67,7 +67,9 @@
 
   /* 지도 + 플레이어 */
   #mapCard { display: none; padding: 0; overflow: hidden; }
-  #mapCard.on { display: block; }
+  #mapCard.on, #stageCard.on { display: block; }
+  #stageCard { display: none; padding: 0; overflow: hidden; }
+  #stage { display: block; margin: 0 auto; max-width: 100%; max-height: 72vh; width: auto; height: auto; background: var(--soft); }
   #map { height: min(58vh, 520px); min-height: 300px; background: var(--soft); }
   .player { padding: 12px 14px 14px; border-top: 1px solid var(--line); }
   .clock { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
@@ -90,7 +92,7 @@
   .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--soft); color: var(--muted); margin-left: 4px; }
   .tag.stay { color: var(--ok); }
 
-  #out canvas, #out video { width: 100%; border-radius: 12px; background: #000; display: block; margin-top: 12px; }
+  #out video { width: 100%; border-radius: 12px; background: #000; display: block; margin-top: 12px; }
   .bar { height: 8px; background: var(--soft); border-radius: 99px; overflow: hidden; margin-top: 10px; }
   .bar i { display: block; height: 100%; width: 0; background: var(--route); transition: width .2s; }
   footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 24px; }
@@ -170,22 +172,27 @@
   <!-- 3 미리보기 -->
   <section class="card step" data-step="3">
     <h2>미리보기</h2>
-    <p class="lead">재생하면 이동 경로가 그려집니다. 이 화면이 그대로 동영상이 됩니다.</p>
-    <div class="opts">
-      <label class="f" for="vlen" style="margin:0 6px 0 0">영상 길이</label>
-      <select id="vlen">
-        <option value="15">15초</option><option value="30" selected>30초</option>
-        <option value="60">1분</option><option value="120">2분</option>
-      </select>
-      <label class="f" for="mapStyle" style="margin:0 6px 0 10px">지도</label>
-      <select id="mapStyle">
-        <option value="color">컬러</option>
-        <option value="light">밝게</option>
-        <option value="dark">어둡게</option>
-      </select>
+    <p class="lead">아래 화면이 그대로 동영상이 됩니다. 이동하는 범위에 맞춰 지도가 자동으로 확대·축소되고, 지난 경로는 점점 흐려집니다.</p>
+    <div class="row">
+      <div><label class="f" for="vlen">영상 길이</label>
+        <select id="vlen"><option value="15">15초</option><option value="30" selected>30초</option><option value="60">1분</option><option value="120">2분</option></select></div>
+      <div><label class="f" for="quality">화면</label>
+        <select id="quality">
+          <option value="480">가로 · 480p · 15fps</option>
+          <option value="720" selected>가로 · 720p · 30fps</option>
+          <option value="sq">정사각형 · 720×720</option>
+          <option value="v">세로 · 720×1280</option>
+        </select></div>
+    </div>
+    <div class="row">
+      <div><label class="f" for="camera">카메라</label>
+        <select id="camera"><option value="follow">자동 확대·축소</option><option value="fit">전체 경로 고정</option></select></div>
+      <div><label class="f" for="mapStyle">지도</label>
+        <select id="mapStyle"><option value="light" selected>회색</option><option value="color">컬러</option><option value="dark">어둡게</option></select></div>
+      <div><label class="f" for="routeColor">선 색</label>
+        <select id="routeColor"><option value="pink">분홍</option><option value="orange">주황</option><option value="blue">파랑</option><option value="green">초록</option></select></div>
     </div>
     <label class="check"><input type="checkbox" id="skipIdle" checked> 머문 시간 빠르게</label>
-    <label class="check"><input type="checkbox" id="follow" checked> 따라가기</label>
     <div class="next"><button class="btn" id="to4">방문 찾기 →</button>&nbsp;<button class="btn primary" id="to5">내보내기 →</button></div>
   </section>
 
@@ -216,34 +223,14 @@
   <!-- 5 내보내기 -->
   <section class="card step" data-step="5">
     <h2>동영상 만들기</h2>
-    <p class="lead">미리보기와 같은 길이로 영상을 녹화합니다. 녹화하는 동안 이 화면을 켜 두세요.</p>
-    <div class="row">
-      <div><label class="f" for="quality">화질</label>
-        <select id="quality">
-          <option value="480">가볍게 · 480p · 15fps</option>
-          <option value="720">선명하게 · 720p · 30fps</option>
-          <option value="sq">정사각형 · 720×720 · 30fps</option>
-          <option value="v">세로 · 720×1280 · 30fps</option>
-        </select></div>
-      <div><label class="f" for="vlen5">영상 길이</label>
-        <select id="vlen5">
-          <option value="15">15초</option><option value="30" selected>30초</option>
-          <option value="60">1분</option><option value="120">2분</option>
-        </select></div>
-    </div>
-    <div class="row">
-      <div><label class="f" for="camera">카메라</label>
-        <select id="camera">
-          <option value="fit">전체 경로 보기</option>
-          <option value="follow">이동 따라가기</option>
-        </select></div>
-    </div>
-    <div style="margin-top:14px"><button class="btn primary big" id="record">동영상 만들기</button></div>
+    <p class="lead">미리보기 화면 그대로 녹화합니다. 화면 크기·길이·지도 모양은 ③ 미리보기에서 바꿀 수 있습니다. 녹화하는 동안 이 화면을 켜 두세요.</p>
+    <div class="stat" id="recInfo"></div>
+    <div style="margin-top:12px"><button class="btn primary big" id="record">동영상 만들기</button></div>
     <div id="out"></div>
   </section>
 
-  <section class="card" id="mapCard">
-    <div id="map"></div>
+  <section class="card" id="stageCard">
+    <canvas id="stage" width="1280" height="720"></canvas>
     <div class="player">
       <div class="clock"><span class="now" id="now">--</span><span class="place" id="curPlace"></span></div>
       <div class="controls">
@@ -251,6 +238,10 @@
         <input type="range" id="seek" min="0" max="10000" value="0" aria-label="재생 위치">
       </div>
     </div>
+  </section>
+
+  <section class="card" id="mapCard">
+    <div id="map"></div>
   </section>
 
   <footer>계정도, 위치 권한도, 업로드도 필요하지 않습니다.<br>지도 데이터 © OpenStreetMap 기여자</footer>
@@ -403,14 +394,16 @@ function go(n) {
   step = n;
   document.querySelectorAll('.step').forEach(s => s.classList.toggle('on', +s.dataset.step === n));
   [...$('steps').children].forEach(b => b.classList.toggle('on', +b.dataset.s === n));
-  const showMap = n >= 3;
-  $('mapCard').classList.toggle('on', showMap);
-  if (showMap) {
-    // 지도 카드를 현재 단계 카드 바로 아래로
-    document.querySelector(`.step[data-step="${n}"]`).after($('mapCard'));
+  const here = document.querySelector(`.step[data-step="${n}"]`);
+  $('mapCard').classList.toggle('on', n === 4);
+  $('stageCard').classList.toggle('on', n === 3 || n === 5);
+  if (n === 4) {
+    here.after($('mapCard'));
     setTimeout(() => { map.invalidateSize(); if (!map._fitted && P.length) { fitPath(); map._fitted = true; } }, 30);
   }
-  if (n !== 3) pause();
+  if (n === 3 || n === 5) { here.after($('stageCard')); if (!R) prepare(); drawStage(); }
+  if (n === 5) updateRecInfo();
+  if (n !== 3 && n !== 5) pause();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 $('steps').onclick = e => { const b = e.target.closest('button'); if (b && !b.disabled) go(+b.dataset.s); };
@@ -422,19 +415,14 @@ $('to5').onclick = () => go(5);
 // ───────── 지도 ─────────
 // OpenStreetMap 기본 지도 (API 키 필요 없음). 밝게/어둡게는 색 필터로 만듦
 const OSM_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const FILTERS = { color: 'none', light: 'grayscale(1) brightness(1.08) contrast(.85)', dark: 'invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6)' };
+const FILTERS = { color: 'none', light: 'grayscale(1) brightness(1.12) contrast(.7)', dark: 'invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6)' };
 const map = L.map('map', { preferCanvas: true }).setView([37.5665, 126.978], 12);
 const tiles = L.tileLayer(OSM_URL, { maxZoom: 19, attribution: '&copy; OpenStreetMap 기여자' }).addTo(map);
 const applyMapStyle = () => { map.getPane('tilePane').style.filter = FILTERS[$('mapStyle').value] || 'none'; };
 applyMapStyle();
 const fullPath = L.polyline([], { color: '#8a99ab', weight: 3, opacity: .55 }).addTo(map);
-const trail = L.polyline([], { color: css('--route') || '#e8590c', weight: 5, opacity: .95 }).addTo(map);
 const visitLayer = L.layerGroup().addTo(map);
 const searchLayer = L.layerGroup().addTo(map);
-const marker = L.circleMarker([0, 0], { radius: 9, color: '#fff', weight: 3, fillColor: css('--route') || '#e8590c', fillOpacity: 1 });
-$('vlen').onchange = () => $('vlen5').value = $('vlen').value;
-$('vlen5').onchange = () => $('vlen').value = $('vlen5').value;
-$('mapStyle').onchange = applyMapStyle;
 function fitPath() { if (P.length) map.fitBounds(fullPath.getBounds(), { padding: [30, 30], maxZoom: 15 }); }
 map.on('click', e => {
   setCenter(e.latlng.lat, e.latlng.lng, `지도에서 고른 곳 (${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)})`);
@@ -492,9 +480,10 @@ function applyRange() {
       .on('click', ev => { L.DomEvent.stopPropagation(ev); setCenter(v.lat, v.lng, v.name || `머문 곳 (${v.lat.toFixed(5)}, ${v.lng.toFixed(5)})`); if (step !== 4) go(4); runSearch(); })
       .addTo(visitLayer);
   }
-  if (P.length) { if (!map.hasLayer(marker)) marker.addTo(map); map._fitted = false; if (step >= 3) fitPath(), map._fitted = true; }
+  map._fitted = false;
+  if (P.length && step === 4) { fitPath(); map._fitted = true; }
   buildWarp();
-  pause(); seekU(0);
+  pause(); prepare(); seekU(0);
 }
 
 // ───────── 시간 압축 (머문 시간은 짧게, 이동은 길게) ─────────
@@ -527,7 +516,7 @@ function unwarp(t) {                 // 실제 시각 → 0~1
   const a = P[i], b = P[i + 1], k = b.t > a.t ? (t - a.t) / (b.t - a.t) : 0;
   return (W[i] + WW[i] * k) / Wtot;
 }
-$('skipIdle').onchange = () => { const t = warp(play.u); buildWarp(); seekU(unwarp(t)); };
+$('skipIdle').onchange = () => { const t = warp(play.u); buildWarp(); prepare(); seekU(unwarp(t)); };
 
 function posAt(t) {
   if (!P.length) return null;
@@ -542,42 +531,243 @@ function placeAt(t) {
   return v ? `${v.name || '머무는 중'} · ${fmtTime(v.s)}~${fmtTime(v.e)}` : '이동 중';
 }
 
-// ───────── 미리보기 재생 ─────────
-const play = { u: 0, playing: false, last: 0, trailIdx: -1 };
-function render() {
-  $('seek').value = Math.round(play.u * 10000);
-  if (!P.length) { $('now').textContent = '--'; $('curPlace').textContent = ''; return; }
-  const t = warp(play.u), pos = posAt(t);
-  $('now').textContent = fmtDT(t);
-  $('curPlace').textContent = (placeAt(t) === '이동 중' ? '🚶 ' : '📍 ') + placeAt(t);
-  marker.setLatLng([pos.lat, pos.lng]);
-  if (pos.i < play.trailIdx || play.trailIdx < 0) trail.setLatLngs(P.slice(0, pos.i + 1).map(p => [p.lat, p.lng]));
-  else for (let j = play.trailIdx + 1; j <= pos.i; j++) trail.addLatLng([P[j].lat, P[j].lng]);
-  play.trailIdx = pos.i;
-  if ($('follow').checked && play.playing && !map.getBounds().pad(-0.25).contains([pos.lat, pos.lng])) map.panTo([pos.lat, pos.lng], { animate: false });
+// ───────── 미리보기·동영상 공용 그리기 ─────────
+const stage = $('stage'), sctx = stage.getContext('2d');
+const ROUTE = { pink: '#e8175d', orange: '#ef5a0f', blue: '#1f6feb', green: '#0d9a5b' };
+const FONT = '-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif';
+const GAP_MS = 3 * 3600e3;
+function dims() { const q = $('quality').value; return q === '480' ? [854, 480, 15] : q === '720' ? [1280, 720, 30] : q === 'sq' ? [720, 720, 30] : [720, 1280, 30]; }
+function project0(lat, lng) {
+  const sin = Math.sin(Math.max(-85, Math.min(85, lat)) * Math.PI / 180);
+  return [(lng + 180) / 360 * 256, (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * 256];
 }
-function seekU(u) { play.u = Math.min(Math.max(u, 0), 1); play.trailIdx = -1; render(); }
+
+// 지도 타일 (OpenStreetMap) + 회색/어둡게 색 변환
+const TC = new Map();
+let recording = false, redrawQueued = false;
+function tileObj(z, x, y) {
+  const n = 2 ** z; x = ((x % n) + n) % n;
+  if (y < 0 || y >= n) return null;
+  const key = z + '/' + x + '/' + y;
+  let o = TC.get(key);
+  if (!o) {
+    o = { img: new Image(), ready: false, cv: {} };
+    o.img.crossOrigin = 'anonymous';
+    o.p = new Promise(res => {
+      o.img.onload = () => { o.ready = true; res(); if (!play.playing && !recording && !redrawQueued) { redrawQueued = true; requestAnimationFrame(() => { redrawQueued = false; drawStage(); }); } };
+      o.img.onerror = () => res();
+      setTimeout(res, 15000);
+    });
+    o.img.src = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+    TC.set(key, o);
+    if (TC.size > 2500) TC.delete(TC.keys().next().value);
+  }
+  return o;
+}
+function tileSrc(o, style) {
+  if (!o || !o.ready) return null;
+  if (style === 'color') return o.img;
+  if (o.cv[style]) return o.cv[style];
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const x = c.getContext('2d'); x.drawImage(o.img, 0, 0, 256, 256);
+  try {
+    const d = x.getImageData(0, 0, 256, 256), a = d.data;
+    for (let i = 0; i < a.length; i += 4) {
+      const g = 0.3 * a[i] + 0.59 * a[i + 1] + 0.11 * a[i + 2];
+      if (style === 'light') { const v = 255 - (255 - g) * 0.42; a[i] = v - 3; a[i + 1] = v - 1; a[i + 2] = v + 3; }
+      else { const v = 24 + (255 - g) * 0.24; a[i] = v; a[i + 1] = v + 3; a[i + 2] = v + 8; }
+    }
+    x.putImageData(d, 0, 0);
+  } catch (e) { /* 색 변환 실패 시 원본 */ }
+  o.cv[style] = c;
+  return c;
+}
+
+// 카메라 경로를 미리 계산
+let R = null;
+function prepare() {
+  R = null;
+  if (P.length < 2 || Wtot <= 0) { drawStage(); return; }
+  const [Wd, Ht, fps] = dims();
+  if (stage.width !== Wd) stage.width = Wd;
+  if (stage.height !== Ht) stage.height = Ht;
+  const N = Math.max(2, Math.round(+$('vlen').value * fps));
+  const XY = P.map(p => project0(p.lat, p.lng));
+  const gap = new Uint8Array(P.length), D = new Float64Array(P.length);
+  for (let i = 1; i < P.length; i++) {
+    const dd = dist(P[i - 1].lat, P[i - 1].lng, P[i].lat, P[i].lng);
+    gap[i] = P[i].t - P[i - 1].t > GAP_MS && dd > 2000 ? 1 : 0;   // 기록이 빠져 위치가 크게 튄 곳만 끊음
+    D[i] = D[i - 1] + (gap[i] ? 0 : dd / 1000);
+  }
+  const follow = $('camera').value === 'follow';
+  const MIN_SPAN = 0.025;                         // 약 4km 보다 더 확대하지 않음
+  const topPad = 0.16;                            // 위쪽 정보 카드 자리
+  const fit = (x0, y0, x1, y1) => {
+    const dx = Math.max(x1 - x0, MIN_SPAN), dy = Math.max(y1 - y0, MIN_SPAN);
+    const z = Math.log2(Math.min(Wd * 0.72 / dx, Ht * (0.78 - topPad) / dy));
+    const zz = Math.max(3, Math.min(15, z));
+    return { x: (x0 + x1) / 2, y: (y0 + y1) / 2 - Ht * topPad / 2 / 2 ** zz, z: zz };
+  };
+  let ax0 = Infinity, ay0 = Infinity, ax1 = -Infinity, ay1 = -Infinity;
+  for (const [x, y] of XY) { ax0 = Math.min(ax0, x); ax1 = Math.max(ax1, x); ay0 = Math.min(ay0, y); ay1 = Math.max(ay1, y); }
+  const whole = fit(ax0, ay0, ax1, ay1);
+  const cams = new Array(N + 1);
+  const win = Wtot * 0.1;                         // 최근 이동 구간 = 영상의 10%
+  let lo = 0;
+  for (let k = 0; k <= N; k++) {
+    if (!follow) { cams[k] = { ...whole }; continue; }
+    const h = headAt(k / N, XY);
+    while (lo < h.i && W[lo + 1] < h.target - win) lo++;
+    let x0 = h.x, y0 = h.y, x1 = h.x, y1 = h.y;
+    const stride = Math.max(1, Math.floor((h.i - lo) / 2000));
+    for (let j = lo; j <= h.i; j += stride) {
+      const [x, y] = XY[j];
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    cams[k] = fit(x0, y0, x1, y1);
+  }
+  // 앞뒤로 부드럽게 (흔들림·급격한 줌 방지)
+  if (follow) {
+    const a = 1 - Math.pow(0.9, 30 / fps);
+    for (let pass = 0; pass < 2; pass++) {
+      for (let k = 1; k <= N; k++) for (const f of ['x', 'y', 'z']) cams[k][f] += (cams[k - 1][f] - cams[k][f]) * (1 - a);
+      for (let k = N - 1; k >= 0; k--) for (const f of ['x', 'y', 'z']) cams[k][f] += (cams[k + 1][f] - cams[k][f]) * (1 - a);
+    }
+  }
+  R = { Wd, Ht, fps, N, XY, gap, D, cams };
+  updateRecInfo();
+}
+function headAt(u, XY) {
+  const target = Math.min(Math.max(u, 0), 1) * Wtot;
+  let lo = 0, hi = WW.length - 1;
+  while (lo < hi) { const m = (lo + hi + 1) >> 1; if (W[m] <= target) lo = m; else hi = m - 1; }
+  const f = WW[lo] > 0 ? Math.min(1, (target - W[lo]) / WW[lo]) : 0;
+  const a = XY[lo], b = XY[lo + 1] || a;
+  return { i: lo, f, target, x: a[0] + (b[0] - a[0]) * f, y: a[1] + (b[1] - a[1]) * f };
+}
+function camAt(u) {
+  const fk = Math.min(Math.max(u, 0), 1) * R.N, k0 = Math.floor(fk), k1 = Math.min(R.N, k0 + 1), f = fk - k0;
+  const a = R.cams[k0], b = R.cams[k1];
+  return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f, z: a.z + (b.z - a.z) * f };
+}
+function rrect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+function drawFrame(ctx, u) {
+  const { Wd, Ht, XY, gap, D } = R;
+  const style = $('mapStyle').value, dark = style === 'dark', color = ROUTE[$('routeColor').value] || ROUTE.pink;
+  const cam = camAt(u), s2 = 2 ** cam.z, ox = cam.x * s2 - Wd / 2, oy = cam.y * s2 - Ht / 2;
+  const S = Math.min(Wd, Ht) / 480;
+
+  // 지도
+  ctx.fillStyle = dark ? '#1c2129' : style === 'light' ? '#eceef0' : '#e8e4dc';
+  ctx.fillRect(0, 0, Wd, Ht);
+  const zi = Math.max(1, Math.min(18, Math.round(cam.z))), ts = 256 * 2 ** (cam.z - zi);
+  for (let tx = Math.floor(ox / ts); tx <= Math.floor((ox + Wd) / ts); tx++)
+    for (let ty = Math.floor(oy / ts); ty <= Math.floor((oy + Ht) / ts); ty++) {
+      const dx = tx * ts - ox, dy = ty * ts - oy;
+      const src = tileSrc(tileObj(zi, tx, ty), style);
+      if (src) { ctx.drawImage(src, dx, dy, ts + 0.6, ts + 0.6); continue; }
+      const par = tileSrc(tileObj(zi - 1, tx >> 1, ty >> 1), style);    // 아직 안 받아졌으면 한 단계 위 타일로 대신
+      if (par) ctx.drawImage(par, (tx & 1) * 128, (ty & 1) * 128, 128, 128, dx, dy, ts + 0.6, ts + 0.6);
+    }
+
+  // 경로: 최근은 진하고 굵게, 지난 것은 흐리고 가늘게, 곡선으로 부드럽게
+  const h = headAt(u, XY);
+  const fade = Math.max(Wtot * 0.22, 1);
+  const sx = j => XY[j][0] * s2 - ox, sy = j => XY[j][1] * s2 - oy;
+  const keep = [];
+  let lx = -1e9, ly = -1e9;
+  for (let j = 0; j <= h.i; j++) {
+    const x = sx(j), y = sy(j);
+    if (gap[j] || j === 0 || j === h.i || Math.abs(x - lx) + Math.abs(y - ly) > 1.5 * S) { keep.push(j); lx = x; ly = y; }
+  }
+  const pts = keep.map(j => ({ x: sx(j), y: sy(j), w: W[j], g: gap[j] }));
+  pts.push({ x: h.x * s2 - ox, y: h.y * s2 - oy, w: h.target, g: (h.f > 0 && gap[h.i + 1]) ? 1 : 0 });
+  const LV = 12, paths = Array.from({ length: LV }, () => new Path2D());
+  for (let n = 1; n < pts.length; n++) {
+    const a = pts[n - 1], b = pts[n];
+    if (b.g) continue;
+    const prev = n >= 2 && !a.g ? pts[n - 2] : null, next = n + 1 < pts.length && !pts[n + 1].g ? pts[n + 1] : null;
+    const m0 = prev ? { x: (prev.x + a.x) / 2, y: (prev.y + a.y) / 2 } : a;
+    const m1 = next ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : b;
+    const age = (h.target - a.w) / fade, lv = Math.max(0, Math.min(LV - 1, Math.floor((1 - Math.min(1, age)) * LV)));
+    const p = paths[lv];
+    p.moveTo(m0.x, m0.y); p.quadraticCurveTo(a.x, a.y, m1.x, m1.y);
+    if (!next) p.lineTo(b.x, b.y);
+  }
+  ctx.lineJoin = 'round'; ctx.strokeStyle = color;
+  for (let lv = 0; lv < LV; lv++) {
+    const k = (lv + 1) / LV;                      // 0(오래됨) ~ 1(최근)
+    ctx.globalAlpha = 0.16 + 0.84 * k * k;
+    ctx.lineWidth = (1.3 + 2.2 * k) * S;
+    ctx.lineCap = lv === LV - 1 ? 'round' : 'butt';
+    ctx.stroke(paths[lv]);
+  }
+  ctx.globalAlpha = 1;
+
+  // 현재 위치
+  const mx = h.x * s2 - ox, my = h.y * s2 - oy;
+  ctx.fillStyle = color; ctx.globalAlpha = 0.22; ctx.beginPath(); ctx.arc(mx, my, 9 * S, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(mx, my, 5.5 * S, 0, 7); ctx.fill();
+  ctx.fillStyle = color; ctx.beginPath(); ctx.arc(mx, my, 4 * S, 0, 7); ctx.fill();
+  ctx.fillStyle = '#1b1b1f'; ctx.beginPath(); ctx.arc(mx, my, 1.6 * S, 0, 7); ctx.fill();
+
+  // 위쪽 정보 카드
+  const t = warp(u), d = new Date(t);
+  const km = D[h.i] + (h.i + 1 < P.length && !gap[h.i + 1] ? (D[h.i + 1] - D[h.i]) * h.f : 0);
+  const l1 = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${WD[d.getDay()]}) ${fmtTime(t)}`;
+  const pl = placeAt(t);
+  const l2 = `누적 ${km < 10 ? km.toFixed(1) : Math.round(km).toLocaleString()} km · ${pl}`;
+  ctx.font = `700 ${17 * S}px ${FONT}`; const w1 = ctx.measureText(l1).width;
+  ctx.font = `500 ${12 * S}px ${FONT}`; const w2 = ctx.measureText(l2).width;
+  const cw = Math.min(Wd - 24 * S, Math.max(w1, w2) + 36 * S), ch = 54 * S, cx0 = (Wd - cw) / 2, cy0 = 12 * S;
+  ctx.fillStyle = dark ? 'rgba(20,26,34,.86)' : 'rgba(255,255,255,.9)'; rrect(ctx, cx0, cy0, cw, ch, 12 * S); ctx.fill();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = dark ? '#eef2f6' : '#16181d'; ctx.font = `700 ${17 * S}px ${FONT}`; ctx.fillText(l1, Wd / 2, cy0 + 24 * S);
+  ctx.fillStyle = dark ? '#9aa6b4' : '#5f6672'; ctx.font = `500 ${12 * S}px ${FONT}`; ctx.fillText(l2, Wd / 2, cy0 + 43 * S);
+  ctx.textAlign = 'right'; ctx.font = `${8.5 * S}px ${FONT}`; ctx.fillStyle = dark ? 'rgba(255,255,255,.55)' : 'rgba(0,0,0,.5)';
+  ctx.fillText('© OpenStreetMap', Wd - 6 * S, Ht - 8 * S); ctx.textAlign = 'left';
+  // 진행 막대
+  ctx.fillStyle = color; ctx.globalAlpha = .9; ctx.fillRect(0, Ht - 3 * S, Wd * u, 3 * S); ctx.globalAlpha = 1;
+}
+
+const play = { u: 0, playing: false, last: 0 };
+function drawStage() {
+  $('seek').value = Math.round(play.u * 10000);
+  if (!R) {
+    sctx.fillStyle = '#e9ecef'; sctx.fillRect(0, 0, stage.width, stage.height);
+    $('now').textContent = '--'; $('curPlace').textContent = P.length ? '' : '파일을 먼저 불러와 주세요';
+    return;
+  }
+  drawFrame(sctx, play.u);
+  const t = warp(play.u);
+  $('now').textContent = fmtDT(t);
+  $('curPlace').textContent = placeAt(t);
+}
+function seekU(u) { play.u = Math.min(Math.max(u, 0), 1); drawStage(); }
 function pause() { play.playing = false; $('play').textContent = '▶ 재생'; }
 function start() {
-  if (P.length < 2) return;
-  if (play.u >= 1) seekU(0);
+  if (!R || recording) return;
+  if (play.u >= 1) play.u = 0;
   play.playing = true; play.last = performance.now(); $('play').textContent = '⏸ 정지';
 }
 function tick(now) {
   if (play.playing) {
-    const dt = Math.min((now - play.last) / 1000, 0.25);
-    play.u += dt / +$('vlen').value;
+    play.u += Math.min((now - play.last) / 1000, 0.25) / +$('vlen').value;
     if (play.u >= 1) { play.u = 1; pause(); }
-    render();
+    drawStage();
   }
   play.last = now;
   requestAnimationFrame(tick);
 }
 requestAnimationFrame(tick);
 $('play').onclick = () => play.playing ? pause() : start();
-$('seek').oninput = e => seekU(e.target.value / 10000);
+$('seek').oninput = e => { if (!recording) seekU(e.target.value / 10000); };
+['vlen', 'quality', 'camera'].forEach(id => $(id).addEventListener('change', () => { prepare(); drawStage(); }));
+$('routeColor').onchange = () => drawStage();
+$('mapStyle').onchange = () => { applyMapStyle(); drawStage(); };
 document.addEventListener('keydown', e => {
-  if (e.code === 'Space' && step >= 3 && !/INPUT|SELECT|TEXTAREA|BUTTON/.test(document.activeElement.tagName)) { e.preventDefault(); $('play').click(); }
+  if (e.code === 'Space' && (step === 3 || step === 5) && !/INPUT|SELECT|TEXTAREA|BUTTON/.test(document.activeElement.tagName)) { e.preventDefault(); $('play').click(); }
 });
 
 // ───────── 방문 찾기 ─────────
@@ -716,9 +906,9 @@ function jumpTo(m) {
     applyRange();
   }
   pause();
+  go(3);
   seekU(unwarp(m.s - 10 * 60000));
-  map.setView([center.lat, center.lng], Math.max(map.getZoom(), 15));
-  $('mapCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setTimeout(() => $('stageCard').scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
 }
 function downloadCSV() {
   const rows = [['날짜', '도착', '출발', '머문 시간(분)', '장소', '기준점', '반경(m)']];
@@ -745,166 +935,82 @@ $('radiusChips').onclick = e => {
 };
 $('radius').oninput = () => [...$('radiusChips').children].forEach(b => b.classList.toggle('on', b.dataset.m === $('radius').value));
 
-// ───────── 동영상 내보내기 (캔버스에 직접 그려서 녹화) ─────────
-const TS = 256;
-function project(lat, lng, z) {
-  const s = TS * 2 ** z, sin = Math.sin(lat * Math.PI / 180);
-  return [(lng + 180) / 360 * s, (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * s];
+// ───────── 동영상 내보내기 (미리보기 화면을 그대로 녹화) ─────────
+function updateRecInfo() {
+  const [Wd, Ht, fps] = dims();
+  $('recInfo').textContent = `${Wd}×${Ht} · ${fps}fps · ${$('vlen').selectedOptions[0].text} · 지도 ${$('mapStyle').selectedOptions[0].text} · ${$('camera').selectedOptions[0].text}`;
 }
-const tileCache = new Map();
-function tileImg(style, z, x, y) {
-  const n = 2 ** z; x = ((x % n) + n) % n;
-  if (y < 0 || y >= n) return null;
-  const key = `${style}/${z}/${x}/${y}`;
-  if (!tileCache.has(key)) {
-    const img = new Image(); img.crossOrigin = 'anonymous';
-    img.ready = new Promise(res => { img.onload = () => res(true); img.onerror = () => res(false); setTimeout(() => res(false), 15000); });
-    img.src = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
-    tileCache.set(key, img);
-  }
-  return tileCache.get(key);
-}
-function tilesFor(cx, cy, z, Wd, Ht) {
-  const out = [];
-  for (let x = Math.floor((cx - Wd / 2) / TS); x <= Math.floor((cx + Wd / 2) / TS); x++)
-    for (let y = Math.floor((cy - Ht / 2) / TS); y <= Math.floor((cy + Ht / 2) / TS); y++) out.push([x, y]);
-  return out;
-}
-function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
-
 async function recordVideo() {
-  if (P.length < 2) return;
+  if (!R) prepare();
+  if (!R) return;
   if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) {
     $('out').innerHTML = '<div class="stat err">이 브라우저는 동영상 녹화를 지원하지 않습니다. 최신 Chrome, Edge, Safari에서 열어 주세요.</div>'; return;
   }
-  pause();
-  const q = $('quality').value;
-  const [Wd, Ht, fps] = q === '480' ? [854, 480, 15] : q === '720' ? [1280, 720, 30] : q === 'sq' ? [720, 720, 30] : [720, 1280, 30];
-  const secs = +$('vlen').value, N = secs * fps, style = $('mapStyle').value, follow = $('camera').value === 'follow';
-  const dark = style === 'dark';
+  pause(); recording = true;
   const btn = $('record'); btn.disabled = true;
+  const { N, fps, Wd, Ht } = R, secs = +$('vlen').value;
   $('out').innerHTML = `<div class="stat" id="recStat">지도 준비 중…</div><div class="bar"><i id="recBar"></i></div>`;
-  const canvas = document.createElement('canvas'); canvas.width = Wd; canvas.height = Ht;
-  $('out').appendChild(canvas);
-  const ctx = canvas.getContext('2d');
+  $('stageCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  // 카메라 줌 결정
-  let z;
-  if (follow) z = Math.min(16, Math.max(12, Math.round(map.getZoom())));
-  else {
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (const p of P) { const [x, y] = project(p.lat, p.lng, 0); x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
-    const sc = Math.min(Wd * 0.8 / Math.max(x1 - x0, 1e-9), Ht * 0.7 / Math.max(y1 - y0, 1e-9));
-    z = Math.max(3, Math.min(16, Math.floor(Math.log2(sc))));
+  // 필요한 지도 타일을 미리 받기
+  const need = new Map();
+  for (let k = 0; k <= N; k += Math.max(1, Math.floor(fps / 5))) {
+    const c = camAt(k / N), s2 = 2 ** c.z, ox = c.x * s2 - Wd / 2, oy = c.y * s2 - Ht / 2;
+    const zi = Math.max(1, Math.min(18, Math.round(c.z))), ts = 256 * 2 ** (c.z - zi);
+    for (let tx = Math.floor(ox / ts); tx <= Math.floor((ox + Wd) / ts); tx++)
+      for (let ty = Math.floor(oy / ts); ty <= Math.floor((oy + Ht) / ts); ty++) need.set(`${zi}/${tx}/${ty}`, [zi, tx, ty]);
+    if (need.size > 3000) break;
   }
-  const XY = P.map(p => project(p.lat, p.lng, z));
-  const posXY = t => { const p = posAt(t); return { xy: project(p.lat, p.lng, z), i: p.i }; };
-
-  // 프레임별 카메라 위치 미리 계산
-  const cams = [], frames = [];
-  let cam = null;
-  const fitC = (() => { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const [x, y] of XY) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); } return [(x0 + x1) / 2, (y0 + y1) / 2 + Ht * 0.06]; })();
-  const alpha = 1 - Math.pow(0.88, 15 / fps);
-  for (let k = 0; k <= N; k++) {
-    const t = warp(k / N), p = posXY(t);
-    if (follow) { cam = cam ? [cam[0] + (p.xy[0] - cam[0]) * alpha, cam[1] + (p.xy[1] - cam[1]) * alpha] : p.xy.slice(); }
-    else cam = fitC;
-    cams.push(cam); frames.push({ t, p });
-  }
-  // 지도 타일 미리 받기
-  const keys = new Map();
-  for (const c of cams) for (const [x, y] of tilesFor(c[0], c[1], z, Wd, Ht)) keys.set(x + ',' + y, [x, y]);
-  const list = [...keys.values()].slice(0, 1500);
+  const list = [...need.values()];
   let done = 0;
   const queue = list.slice();
   await Promise.all(Array.from({ length: 8 }, async () => {
     while (queue.length) {
-      const [x, y] = queue.shift(); const img = tileImg(style, z, x, y);
-      if (img) await img.ready;
-      done++; $('recStat').textContent = `지도 준비 중… ${done}/${list.length}`; $('recBar').style.width = (done / list.length * 30) + '%';
+      const [z, x, y] = queue.shift(); const o = tileObj(z, x, y);
+      if (o) await o.p;
+      done++;
+      $('recStat').textContent = `지도 준비 중… ${done}/${list.length}`; $('recBar').style.width = (done / list.length * 25) + '%';
     }
   }));
 
-  const route = css('--route') || '#e8590c';
-  function draw(k) {
-    const [cx, cy] = cams[Math.min(k, N)], { t, p } = frames[Math.min(k, N)];
-    const ox = cx - Wd / 2, oy = cy - Ht / 2;
-    ctx.fillStyle = dark ? '#1b1f24' : '#eef0f2'; ctx.fillRect(0, 0, Wd, Ht);
-    for (const [x, y] of tilesFor(cx, cy, z, Wd, Ht)) {
-      const img = tileImg(style, z, x, y);
-      if (img && img.complete && img.naturalWidth) { ctx.filter = FILTERS[style] || 'none'; ctx.drawImage(img, Math.round(x * TS - ox), Math.round(y * TS - oy), TS, TS); ctx.filter = 'none'; }
-    }
-    ctx.lineJoin = ctx.lineCap = 'round';
-    // 전체 경로(흐리게)
-    ctx.strokeStyle = dark ? 'rgba(200,210,225,.35)' : 'rgba(80,95,115,.35)'; ctx.lineWidth = 3; ctx.beginPath();
-    XY.forEach(([x, y], i) => { if (!i || P[i].t - P[i - 1].t > 3 * 3600e3) ctx.moveTo(x - ox, y - oy); else ctx.lineTo(x - ox, y - oy); });
-    ctx.stroke();
-    // 지나온 경로
-    ctx.strokeStyle = route; ctx.lineWidth = Wd > 800 ? 6 : 5; ctx.beginPath();
-    for (let i = 0; i <= p.i; i++) { const [x, y] = XY[i]; if (!i || P[i].t - P[i - 1].t > 3 * 3600e3) ctx.moveTo(x - ox, y - oy); else ctx.lineTo(x - ox, y - oy); }
-    ctx.lineTo(p.xy[0] - ox, p.xy[1] - oy); ctx.stroke();
-    // 현재 위치
-    const mx = p.xy[0] - ox, my = p.xy[1] - oy, pulse = 14 + 6 * Math.sin(k / fps * 5);
-    ctx.fillStyle = route + '40'; ctx.beginPath(); ctx.arc(mx, my, pulse, 0, 7); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(mx, my, 10, 0, 7); ctx.fill();
-    ctx.fillStyle = route; ctx.beginPath(); ctx.arc(mx, my, 7, 0, 7); ctx.fill();
-    // 날짜·시각 카드
-    const S = Math.min(Wd, Ht) / 480, pad0 = 16 * S;
-    const place = placeAt(t);
-    ctx.font = `700 ${15 * S}px -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif`;
-    const dateTxt = fmtDate(t);
-    const big = `800 ${34 * S}px -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif`;
-    const small = `500 ${13 * S}px -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif`;
-    ctx.font = small; const wPlace = ctx.measureText(place).width;
-    const boxW = Math.max(190 * S, wPlace + 28 * S), boxH = 92 * S, bx = pad0, by = Ht - boxH - pad0;
-    ctx.fillStyle = dark ? 'rgba(15,21,28,.85)' : 'rgba(255,255,255,.92)'; roundRect(ctx, bx, by, boxW, boxH, 14 * S); ctx.fill();
-    ctx.fillStyle = dark ? '#e8edf3' : '#14202e';
-    ctx.font = `700 ${14 * S}px -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif`; ctx.fillText(dateTxt, bx + 14 * S, by + 24 * S);
-    ctx.font = big; ctx.fillText(fmtTime(t), bx + 14 * S, by + 60 * S);
-    ctx.font = small; ctx.fillStyle = dark ? '#94a3b4' : '#5d6b7c'; ctx.fillText(place, bx + 14 * S, by + 80 * S);
-    // 진행 막대·출처
-    ctx.fillStyle = route; ctx.fillRect(0, Ht - 4 * S, Wd * Math.min(k, N) / N, 4 * S);
-    ctx.font = `${10 * S}px sans-serif`; ctx.fillStyle = dark ? 'rgba(255,255,255,.6)' : 'rgba(0,0,0,.55)'; ctx.textAlign = 'right';
-    ctx.fillText('© OpenStreetMap', Wd - 8 * S, Ht - 10 * S); ctx.textAlign = 'left';
-  }
-
-  draw(0);
+  drawFrame(sctx, 0);
   const types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
   const mime = types.find(t => MediaRecorder.isTypeSupported(t)) || '';
-  const stream = canvas.captureStream(fps);
-  const rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: Wd >= 1000 || Ht >= 1000 ? 6e6 : 2.5e6 } : undefined);
+  const stream = stage.captureStream(fps);
+  const rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: Wd * Ht > 500000 ? 6e6 : 2.5e6 } : undefined);
   const chunks = [];
-  rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
   const finished = new Promise(res => rec.onstop = res);
   rec.start(500);
-  const hold = fps;  // 끝에서 1초 멈춤
+  const hold = fps;   // 끝에서 1초 멈춤
   await new Promise(res => {
-    let k = 0; const t0 = performance.now();
-    const step = () => {
-      const target = Math.floor((performance.now() - t0) / 1000 * fps);
-      while (k < target && k <= N + hold) k++;
-      draw(Math.min(k, N));
-      $('recStat').textContent = `녹화 중… ${Math.min(100, Math.round(k / (N + hold) * 100))}% (화면을 켜 두세요)`;
-      $('recBar').style.width = (30 + Math.min(1, k / (N + hold)) * 70) + '%';
+    const t0 = performance.now();
+    const loop = () => {
+      const k = Math.min(N + hold, Math.floor((performance.now() - t0) / 1000 * fps));
+      const u = Math.min(1, k / N);
+      drawFrame(sctx, u); play.u = u; $('seek').value = Math.round(u * 10000);
+      $('recStat').textContent = `녹화 중… ${Math.round(k / (N + hold) * 100)}% (화면을 켜 두세요)`;
+      $('recBar').style.width = (25 + k / (N + hold) * 75) + '%';
       if (k >= N + hold) return res();
-      setTimeout(step, 1000 / fps / 2);
+      requestAnimationFrame(loop);
     };
-    step();
+    loop();
   });
   rec.stop(); await finished;
+  recording = false; btn.disabled = false;
   const blob = new Blob(chunks, { type: (mime || 'video/webm').split(';')[0] });
   const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
   const name = `timeline-${fmtDate(range[0]).slice(0, 10)}.${ext}`;
   const url = URL.createObjectURL(blob);
-  canvas.remove();
   $('out').innerHTML = `<div class="stat">✅ 완성 · ${Wd}×${Ht} · ${fps}fps · ${secs}초 · ${(blob.size / 1048576).toFixed(1)}MB (${ext.toUpperCase()})</div>
     <video src="${url}" controls playsinline loop></video>
     <div style="margin-top:10px"><button class="btn primary big" id="saveVid">동영상 저장</button></div>
     ${ext === 'webm' ? '<div class="stat">WEBM 형식입니다. 휴대폰 갤러리에서 안 열리면 Chrome으로 열거나 MP4로 변환해 주세요.</div>' : ''}`;
   $('saveVid').onclick = () => saveBlob(blob, name);
-  btn.disabled = false;
+  $('record').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 $('record').onclick = () => recordVideo().catch(e => {
+  recording = false;
   $('out').innerHTML = `<div class="stat err">동영상을 만들지 못했습니다: ${esc(e.message)}</div>`; $('record').disabled = false;
 });
 
