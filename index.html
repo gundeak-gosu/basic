@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/build/mp4-muxer.js"></script>
 <style>
   /* 레이아웃: 휴대폰 우선 한 줄 흐름, 단계 탭 → 카드 → 지도 */
   :root {
@@ -190,8 +191,6 @@
       <button class="chip" data-r="month">최근 30일</button>
       <button class="chip" data-r="all">전체</button>
     </div>
-    <label class="f">기록이 있는 날</label>
-    <div class="chips" id="dayChips"></div>
     <div class="stat" id="rangeStat"></div>
     <div class="next"><button class="btn primary" id="to3">다음: 미리보기 →</button></div>
   </section>
@@ -250,7 +249,7 @@
   <!-- 5 내보내기 -->
   <section class="card step" data-step="5">
     <h2>동영상 만들기</h2>
-    <p class="lead">미리보기 화면 그대로 녹화합니다. 화면 크기·길이·지도 모양은 ③ 미리보기에서 바꿀 수 있습니다. 녹화하는 동안 이 화면을 켜 두세요.</p>
+    <p class="lead">미리보기 화면 그대로 동영상을 만듭니다. 화면 크기·길이·지도 모양은 ③ 미리보기에서 바꿀 수 있습니다. 만드는 중에 언제든 멈추고 거기까지 저장할 수 있습니다.</p>
     <div class="stat" id="recInfo"></div>
     <div style="margin-top:12px"><button class="btn primary big" id="record">동영상 만들기</button></div>
     <div id="out"></div>
@@ -442,7 +441,6 @@ function finishLoad(label) {
   $('loadStat').innerHTML = `✅ <b>${esc(label)}</b><br>위치 ${DATA.points.length.toLocaleString()}개 · 방문 ${DATA.visits.length.toLocaleString()}곳 · ${fmtDate(first)} ~ ${fmtDate(last)}`;
   $('to2').disabled = false;
   [...$('steps').children].forEach(b => b.disabled = false);
-  buildDayChips();
   setQuick('day');
   go(2);
 }
@@ -495,18 +493,6 @@ map.on('click', e => {
 });
 
 // ───────── 날짜 ─────────
-function buildDayChips() {
-  const cnt = new Map();
-  for (const p of DATA.points) { const k = fmtDate(p.t); cnt.set(k, (cnt.get(k) || 0) + 1); }
-  const days = [...cnt.keys()].reverse().slice(0, 60);
-  $('dayChips').innerHTML = days.map(k => `<button class="chip" data-day="${k.slice(0, 10)}">${k.slice(5, 10).replace('-', '/')} ${k.slice(11)} <small>${cnt.get(k)}</small></button>`).join('')
-    + (cnt.size > 60 ? `<span class="stat">최근 60일만 표시 · 그 이전은 위 시작·끝 칸에 입력</span>` : '');
-}
-$('dayChips').onclick = e => {
-  const b = e.target.closest('[data-day]'); if (!b) return;
-  $('from').value = b.dataset.day + 'T00:00'; $('to').value = b.dataset.day + 'T23:59';
-  applyRange();
-};
 function setQuick(kind) {
   if (!DATA.points.length) return;
   const last = DATA.points[DATA.points.length - 1].t, first = DATA.points[0].t;
@@ -527,9 +513,6 @@ function applyRange() {
   range = [s, e];
   P = DATA.points.slice(lowerBound(DATA.points, s), lowerBound(DATA.points, e + 1));
   V = DATA.visits.filter(v => v.e >= s && v.s <= e);
-  document.querySelectorAll('#dayChips [data-day]').forEach(b => {
-    const d0 = Date.parse(b.dataset.day + 'T00:00'); b.classList.toggle('on', d0 >= s - 1 && d0 < e);
-  });
   $('rangeStat').innerHTML = P.length ? `선택한 기간: 위치 <b>${P.length.toLocaleString()}</b>개 · 머문 곳 <b>${V.length}</b>곳` : '<span class="err">이 기간에는 위치 기록이 없습니다.</span>';
   $('to3').disabled = P.length < 2;
 
@@ -699,7 +682,13 @@ function prepare() {
       for (let k = N - 1; k >= 0; k--) for (const f of ['x', 'y', 'z']) cams[k][f] += (cams[k + 1][f] - cams[k][f]) * (1 - a);
     }
   }
-  R = { Wd, Ht, fps, N, XY, gap, D, cams };
+  // 그리기용으로 점 줄이기 (약 10m 이내로 붙은 점은 생략)
+  const RI = [0];
+  for (let i = 1; i < P.length; i++) {
+    const a = XY[RI[RI.length - 1]], b = XY[i];
+    if (gap[i] || Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) > 6e-5) RI.push(i);
+  }
+  R = { Wd, Ht, fps, N, XY, gap, D, cams, RI: Int32Array.from(RI) };
   updateRecInfo();
 }
 function headAt(u, XY) {
@@ -717,18 +706,26 @@ function camAt(u) {
 }
 function rrect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
 
+function camTiles(cam) {
+  const { Wd, Ht } = R, S = Math.min(Wd, Ht) / 480;
+  const s2 = 2 ** cam.z, ox = cam.x * s2 - Wd / 2, oy = cam.y * s2 - Ht / 2;
+  const zi = Math.max(1, Math.min(18, Math.round(cam.z - Math.log2(S) - 0.45))), ts = 256 * 2 ** (cam.z - zi);
+  const list = [];
+  for (let tx = Math.floor(ox / ts); tx <= Math.floor((ox + Wd) / ts); tx++)
+    for (let ty = Math.floor(oy / ts); ty <= Math.floor((oy + Ht) / ts); ty++) list.push([tx, ty]);
+  return { s2, ox, oy, zi, ts, list };
+}
 function drawFrame(ctx, u) {
   const { Wd, Ht, XY, gap, D } = R;
   const style = $('mapStyle').value, dark = style === 'dark', color = ROUTE[$('routeColor').value] || ROUTE.pink;
-  const cam = camAt(u), s2 = 2 ** cam.z, ox = cam.x * s2 - Wd / 2, oy = cam.y * s2 - Ht / 2;
+  const cam = camAt(u), T = camTiles(cam), { s2, ox, oy, zi, ts } = T;
   const S = Math.min(Wd, Ht) / 480;
 
   // 지도
   ctx.fillStyle = dark ? '#1c2129' : style === 'light' ? '#eceef0' : '#e8e4dc';
   ctx.fillRect(0, 0, Wd, Ht);
-  const zi = Math.max(1, Math.min(18, Math.round(cam.z))), ts = 256 * 2 ** (cam.z - zi);
-  for (let tx = Math.floor(ox / ts); tx <= Math.floor((ox + Wd) / ts); tx++)
-    for (let ty = Math.floor(oy / ts); ty <= Math.floor((oy + Ht) / ts); ty++) {
+  ctx.imageSmoothingQuality = 'high';
+  for (const [tx, ty] of T.list) {
       const dx = tx * ts - ox, dy = ty * ts - oy;
       const src = tileSrc(tileObj(zi, tx, ty), style);
       if (src) { ctx.drawImage(src, dx, dy, ts + 0.6, ts + 0.6); continue; }
@@ -738,17 +735,18 @@ function drawFrame(ctx, u) {
 
   // 경로: 최근은 진하고 굵게, 지난 것은 흐리고 가늘게, 곡선으로 부드럽게
   const h = headAt(u, XY);
-  const fade = Math.max(Wtot * 0.22, 1);
+  const fade = Math.max(Wtot * 0.1, 1);    // 지난 경로는 빨리 흐려지되 완전히 사라지지 않음
   const sx = j => XY[j][0] * s2 - ox, sy = j => XY[j][1] * s2 - oy;
   const keep = [];
   let lx = -1e9, ly = -1e9;
-  for (let j = 0; j <= h.i; j++) {
-    const x = sx(j), y = sy(j);
+  for (let n = 0; n < R.RI.length && R.RI[n] <= h.i; n++) {
+    const j = R.RI[n], x = sx(j), y = sy(j);
     if (gap[j] || j === 0 || j === h.i || Math.abs(x - lx) + Math.abs(y - ly) > 1.5 * S) { keep.push(j); lx = x; ly = y; }
   }
   const pts = keep.map(j => ({ x: sx(j), y: sy(j), w: W[j], g: gap[j] }));
   pts.push({ x: h.x * s2 - ox, y: h.y * s2 - oy, w: h.target, g: (h.f > 0 && gap[h.i + 1]) ? 1 : 0 });
   const LV = 12, paths = Array.from({ length: LV }, () => new Path2D());
+  const oldChunks = [new Path2D()]; let oldN = 0;   // 오래된 선은 조각으로 나눠 그려서 자주 간 길은 겹쳐 진해짐
   for (let n = 1; n < pts.length; n++) {
     const a = pts[n - 1], b = pts[n];
     if (b.g) continue;
@@ -756,15 +754,18 @@ function drawFrame(ctx, u) {
     const m0 = prev ? { x: (prev.x + a.x) / 2, y: (prev.y + a.y) / 2 } : a;
     const m1 = next ? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } : b;
     const age = (h.target - a.w) / fade, lv = Math.max(0, Math.min(LV - 1, Math.floor((1 - Math.min(1, age)) * LV)));
-    const p = paths[lv];
+    let p = paths[lv];
+    if (lv === 0) { if (++oldN % 10 === 0) oldChunks.push(new Path2D()); p = oldChunks[oldChunks.length - 1]; }
     p.moveTo(m0.x, m0.y); p.quadraticCurveTo(a.x, a.y, m1.x, m1.y);
     if (!next) p.lineTo(b.x, b.y);
   }
   ctx.lineJoin = 'round'; ctx.strokeStyle = color;
-  for (let lv = 0; lv < LV; lv++) {
-    const k = (lv + 1) / LV;                      // 0(오래됨) ~ 1(최근)
-    ctx.globalAlpha = 0.16 + 0.84 * k * k;
-    ctx.lineWidth = (1.3 + 2.2 * k) * S;
+  ctx.lineCap = 'butt'; ctx.globalAlpha = 0.2; ctx.lineWidth = 1 * S;
+  for (const c of oldChunks) ctx.stroke(c);
+  for (let lv = 1; lv < LV; lv++) {
+    const k = lv / (LV - 1);                      // 0(오래됨) ~ 1(최근)
+    ctx.globalAlpha = 0.2 + 0.6 * k * k;
+    ctx.lineWidth = (1 + 1.3 * k) * S;
     ctx.lineCap = lv === LV - 1 ? 'round' : 'butt';
     ctx.stroke(paths[lv]);
   }
@@ -772,10 +773,10 @@ function drawFrame(ctx, u) {
 
   // 현재 위치
   const mx = h.x * s2 - ox, my = h.y * s2 - oy;
-  ctx.fillStyle = color; ctx.globalAlpha = 0.22; ctx.beginPath(); ctx.arc(mx, my, 9 * S, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
-  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(mx, my, 5.5 * S, 0, 7); ctx.fill();
-  ctx.fillStyle = color; ctx.beginPath(); ctx.arc(mx, my, 4 * S, 0, 7); ctx.fill();
-  ctx.fillStyle = '#1b1b1f'; ctx.beginPath(); ctx.arc(mx, my, 1.6 * S, 0, 7); ctx.fill();
+  ctx.fillStyle = color; ctx.globalAlpha = 0.2; ctx.beginPath(); ctx.arc(mx, my, 8 * S, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(mx, my, 4.5 * S, 0, 7); ctx.fill();
+  ctx.fillStyle = color; ctx.beginPath(); ctx.arc(mx, my, 3.3 * S, 0, 7); ctx.fill();
+  ctx.fillStyle = '#1b1b1f'; ctx.beginPath(); ctx.arc(mx, my, 1.3 * S, 0, 7); ctx.fill();
 
   // 위쪽 정보 카드
   const t = warp(u), d = new Date(t);
@@ -786,7 +787,7 @@ function drawFrame(ctx, u) {
   ctx.font = `700 ${17 * S}px ${FONT}`; const w1 = ctx.measureText(l1).width;
   ctx.font = `500 ${12 * S}px ${FONT}`; const w2 = ctx.measureText(l2).width;
   const cw = Math.min(Wd - 24 * S, Math.max(w1, w2) + 36 * S), ch = 54 * S, cx0 = (Wd - cw) / 2, cy0 = 12 * S;
-  ctx.fillStyle = dark ? 'rgba(20,26,34,.86)' : 'rgba(255,255,255,.9)'; rrect(ctx, cx0, cy0, cw, ch, 12 * S); ctx.fill();
+  ctx.fillStyle = dark ? 'rgba(20,26,34,.72)' : 'rgba(255,255,255,.76)'; rrect(ctx, cx0, cy0, cw, ch, 12 * S); ctx.fill();
   ctx.textAlign = 'center';
   ctx.fillStyle = dark ? '#eef2f6' : '#16181d'; ctx.font = `700 ${17 * S}px ${FONT}`; ctx.fillText(l1, Wd / 2, cy0 + 24 * S);
   ctx.fillStyle = dark ? '#9aa6b4' : '#5f6672'; ctx.font = `500 ${12 * S}px ${FONT}`; ctx.fillText(l2, Wd / 2, cy0 + 43 * S);
@@ -796,7 +797,10 @@ function drawFrame(ctx, u) {
   ctx.fillStyle = color; ctx.globalAlpha = .9; ctx.fillRect(0, Ht - 3 * S, Wd * u, 3 * S); ctx.globalAlpha = 1;
 }
 
-const play = { u: 0, playing: false, last: 0 };
+const EASE_A = 0.1, EASE_K = 1 / (1 - EASE_A / 2);
+const easeU = p => p <= 0 ? 0 : p >= 1 ? 1 : p < EASE_A ? EASE_K * p * p / (2 * EASE_A) : EASE_K * (p - EASE_A / 2);
+const uneaseU = u => u <= 0 ? 0 : u >= 1 ? 1 : u < EASE_K * EASE_A / 2 ? Math.sqrt(2 * EASE_A * u / EASE_K) : u / EASE_K + EASE_A / 2;
+const play = { u: 0, p: 0, playing: false, last: 0 };
 function drawStage() {
   $('seek').value = Math.round(play.u * 10000);
   if (!R) {
@@ -809,17 +813,18 @@ function drawStage() {
   $('now').textContent = fmtDT(t);
   $('curPlace').textContent = placeAt(t);
 }
-function seekU(u) { play.u = Math.min(Math.max(u, 0), 1); drawStage(); }
+function seekU(u) { play.u = Math.min(Math.max(u, 0), 1); play.p = uneaseU(play.u); drawStage(); }
 function pause() { play.playing = false; $('play').textContent = '▶ 재생'; }
 function start() {
   if (!R || recording) return;
-  if (play.u >= 1) play.u = 0;
+  if (play.u >= 1) { play.u = 0; play.p = 0; }
   play.playing = true; play.last = performance.now(); $('play').textContent = '⏸ 정지';
 }
 function tick(now) {
   if (play.playing) {
-    play.u += Math.min((now - play.last) / 1000, 0.25) / +$('vlen').value;
-    if (play.u >= 1) { play.u = 1; pause(); }
+    play.p += Math.min((now - play.last) / 1000, 0.25) / +$('vlen').value;
+    play.u = easeU(play.p);
+    if (play.p >= 1) { play.u = play.p = 1; pause(); }
     drawStage();
   }
   play.last = now;
@@ -1005,78 +1010,107 @@ function updateRecInfo() {
   const [Wd, Ht, fps] = dims();
   $('recInfo').textContent = `${Wd}×${Ht} · ${fps}fps · ${$('vlen').selectedOptions[0].text} · 지도 ${$('mapStyle').selectedOptions[0].text} · ${$('camera').selectedOptions[0].text}`;
 }
-async function recordVideo() {
-  if (!R) prepare();
-  if (!R) return;
-  if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) {
-    $('out').innerHTML = '<div class="stat err">이 브라우저는 동영상 녹화를 지원하지 않습니다. 최신 Chrome, Edge, Safari에서 열어 주세요.</div>'; return;
+let stopRec = false;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+// 이 프레임에 필요한 지도 타일이 받아질 때까지 기다림 (최대 6초)
+async function waitTiles(u) {
+  const T = camTiles(camAt(u));
+  const ps = T.list.map(([x, y]) => tileObj(T.zi, x, y)).filter(o => o && !o.ready).map(o => o.p);
+  if (ps.length) await Promise.race([Promise.all(ps), sleep(6000)]);
+}
+// 앞으로 쓸 타일을 미리 요청
+function prefetchTiles(u0, u1) {
+  for (let k = 0; k <= 4; k++) { const T = camTiles(camAt(u0 + (u1 - u0) * k / 4)); for (const [x, y] of T.list) tileObj(T.zi, x, y); }
+}
+async function pickCodec(Wd, Ht, fps) {
+  if (!window.VideoEncoder || !window.Mp4Muxer) return null;
+  for (const codec of ['avc1.640028', 'avc1.4d0028', 'avc1.42e028', 'avc1.42001f']) {
+    const cfg = { codec, width: Wd, height: Ht, bitrate: Wd * Ht > 500000 ? 5e6 : 2.5e6, framerate: fps };
+    try { const r = await VideoEncoder.isConfigSupported(cfg); if (r.supported) return cfg; } catch (e) { /* 다음 */ }
   }
-  pause(); recording = true;
-  const btn = $('record'); btn.disabled = true;
-  const { N, fps, Wd, Ht } = R, secs = +$('vlen').value;
-  $('out').innerHTML = `<div class="stat" id="recStat">지도 준비 중…</div><div class="bar"><i id="recBar"></i></div>`;
-  $('stageCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-  // 필요한 지도 타일을 미리 받기
-  const need = new Map();
-  for (let k = 0; k <= N; k += Math.max(1, Math.floor(fps / 5))) {
-    const c = camAt(k / N), s2 = 2 ** c.z, ox = c.x * s2 - Wd / 2, oy = c.y * s2 - Ht / 2;
-    const zi = Math.max(1, Math.min(18, Math.round(c.z))), ts = 256 * 2 ** (c.z - zi);
-    for (let tx = Math.floor(ox / ts); tx <= Math.floor((ox + Wd) / ts); tx++)
-      for (let ty = Math.floor(oy / ts); ty <= Math.floor((oy + Ht) / ts); ty++) need.set(`${zi}/${tx}/${ty}`, [zi, tx, ty]);
-    if (need.size > 3000) break;
-  }
-  const list = [...need.values()];
-  let done = 0;
-  const queue = list.slice();
-  await Promise.all(Array.from({ length: 8 }, async () => {
-    while (queue.length) {
-      const [z, x, y] = queue.shift(); const o = tileObj(z, x, y);
-      if (o) await o.p;
-      done++;
-      $('recStat').textContent = `지도 준비 중… ${done}/${list.length}`; $('recBar').style.width = (done / list.length * 25) + '%';
-    }
-  }));
-
-  drawFrame(sctx, 0);
-  const types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
-  const mime = types.find(t => MediaRecorder.isTypeSupported(t)) || '';
-  const stream = stage.captureStream(fps);
-  const rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: Wd * Ht > 500000 ? 6e6 : 2.5e6 } : undefined);
-  const chunks = [];
-  rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
-  const finished = new Promise(res => rec.onstop = res);
-  rec.start(500);
-  const hold = fps;   // 끝에서 1초 멈춤
-  await new Promise(res => {
-    const t0 = performance.now();
-    const loop = () => {
-      const k = Math.min(N + hold, Math.floor((performance.now() - t0) / 1000 * fps));
-      const u = Math.min(1, k / N);
-      drawFrame(sctx, u); play.u = u; $('seek').value = Math.round(u * 10000);
-      $('recStat').textContent = `녹화 중… ${Math.round(k / (N + hold) * 100)}% (화면을 켜 두세요)`;
-      $('recBar').style.width = (25 + k / (N + hold) * 75) + '%';
-      if (k >= N + hold) return res();
-      requestAnimationFrame(loop);
-    };
-    loop();
-  });
-  rec.stop(); await finished;
-  recording = false; btn.disabled = false;
-  const blob = new Blob(chunks, { type: (mime || 'video/webm').split(';')[0] });
+  return null;
+}
+function showVideo(blob, Wd, Ht, fps, secs, partial) {
   const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
   const name = `timeline-${fmtDate(range[0]).slice(0, 10)}.${ext}`;
   const url = URL.createObjectURL(blob);
-  $('out').innerHTML = `<div class="stat">✅ 완성 · ${Wd}×${Ht} · ${fps}fps · ${secs}초 · ${(blob.size / 1048576).toFixed(1)}MB (${ext.toUpperCase()})</div>
+  $('out').innerHTML = `<div class="stat">✅ ${partial ? '중간까지 저장됨' : '완성'} · ${Wd}×${Ht} · ${fps}fps · ${secs.toFixed(1)}초 · ${(blob.size / 1048576).toFixed(1)}MB (${ext.toUpperCase()})</div>
     <video src="${url}" controls playsinline loop></video>
     <div style="margin-top:10px"><button class="btn primary big" id="saveVid">동영상 저장</button></div>
     ${ext === 'webm' ? '<div class="stat">WEBM 형식입니다. 휴대폰 갤러리에서 안 열리면 Chrome으로 열거나 MP4로 변환해 주세요.</div>' : ''}`;
   $('saveVid').onclick = () => saveBlob(blob, name);
+}
+async function recordVideo() {
+  if (!R) prepare();
+  if (!R) return;
+  pause(); recording = true; stopRec = false;
+  $('record').disabled = true;
+  const { N, fps, Wd, Ht } = R, hold = fps, total = N + hold;
+  $('out').innerHTML = `<div class="stat" id="recStat">준비 중…</div><div class="bar"><i id="recBar"></i></div>
+    <div style="margin-top:10px"><button class="btn big" id="stopRec">■ 녹화 중지 (여기까지 저장)</button></div>`;
+  $('stopRec').onclick = () => { stopRec = true; $('stopRec').disabled = true; };
+  const prog = (k, msg) => { $('recStat').textContent = msg; $('recBar').style.width = (k / total * 100) + '%'; };
+  const frameU = k => easeU(Math.min(1, k / N));
+  const cfg = await pickCodec(Wd, Ht, fps);
+
+  if (cfg) {
+    // 빠른 방식: 프레임을 하나씩 그려 바로 MP4로 인코딩 (실제 재생 시간보다 훨씬 빠름, 끊김 없음)
+    const muxer = new Mp4Muxer.Muxer({ target: new Mp4Muxer.ArrayBufferTarget(), video: { codec: 'avc', width: Wd, height: Ht }, fastStart: 'in-memory' });
+    let encErr = null;
+    const enc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: e => { encErr = e; } });
+    enc.configure(cfg);
+    let k = 0;
+    for (; k <= total && !stopRec && !encErr; k++) {
+      const u = frameU(k);
+      if (k % fps === 0) prefetchTiles(u, frameU(k + fps * 3));
+      await waitTiles(u);
+      drawFrame(sctx, u);
+      const f = new VideoFrame(stage, { timestamp: Math.round(k * 1e6 / fps), duration: Math.round(1e6 / fps) });
+      enc.encode(f, { keyFrame: k % (fps * 2) === 0 }); f.close();
+      while (enc.encodeQueueSize > 6) await sleep(5);
+      if (k % 3 === 0) { prog(k, `만드는 중… ${Math.round(k / total * 100)}%`); $('seek').value = Math.round(u * 10000); await sleep(0); }
+    }
+    if (encErr) throw encErr;
+    await enc.flush(); enc.close(); muxer.finalize();
+    play.u = frameU(Math.min(k, N)); play.p = uneaseU(play.u);
+    showVideo(new Blob([muxer.target.buffer], { type: 'video/mp4' }), Wd, Ht, fps, k / fps, stopRec);
+  } else {
+    // 예전 브라우저: 화면을 실제 시간대로 녹화
+    if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) throw new Error('이 브라우저는 동영상 만들기를 지원하지 않습니다. 최신 Chrome, Edge, Safari에서 열어 주세요.');
+    const list = []; const need = new Map();
+    for (let k = 0; k <= N; k += Math.max(1, Math.floor(fps / 3))) { const T = camTiles(camAt(frameU(k))); for (const [x, y] of T.list) need.set(T.zi + '/' + x + '/' + y, [T.zi, x, y]); }
+    list.push(...need.values());
+    let done = 0;
+    const queue = list.slice();
+    await Promise.all(Array.from({ length: 12 }, async () => {
+      while (queue.length && !stopRec) { const [z, x, y] = queue.shift(); const o = tileObj(z, x, y); if (o) await Promise.race([o.p, sleep(6000)]); done++; $('recStat').textContent = `지도 준비 중… ${done}/${list.length}`; }
+    }));
+    drawFrame(sctx, 0);
+    const types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    const mime = types.find(t => MediaRecorder.isTypeSupported(t)) || '';
+    const rec = new MediaRecorder(stage.captureStream(fps), mime ? { mimeType: mime, videoBitsPerSecond: Wd * Ht > 500000 ? 5e6 : 2.5e6 } : undefined);
+    const chunks = []; rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    const finished = new Promise(res => rec.onstop = res);
+    rec.start(500);
+    let k = 0; const t0 = performance.now();
+    await new Promise(res => {
+      const loop = () => {
+        k = Math.min(total, Math.floor((performance.now() - t0) / 1000 * fps));
+        drawFrame(sctx, frameU(k)); prog(k, `녹화 중… ${Math.round(k / total * 100)}% (화면을 켜 두세요)`);
+        if (k >= total || stopRec) return res();
+        requestAnimationFrame(loop);
+      };
+      loop();
+    });
+    rec.stop(); await finished;
+    showVideo(new Blob(chunks, { type: (mime || 'video/webm').split(';')[0] }), Wd, Ht, fps, k / fps, stopRec);
+  }
+  recording = false; $('record').disabled = false;
   $('record').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 $('record').onclick = () => recordVideo().catch(e => {
   recording = false;
-  $('out').innerHTML = `<div class="stat err">동영상을 만들지 못했습니다: ${esc(e.message)}</div>`; $('record').disabled = false;
+  $('out').innerHTML = `<div class="stat err">동영상을 만들지 못했습니다: ${esc(e.message || e)}</div>`; $('record').disabled = false;
 });
 
 // ───────── 통계 ─────────
@@ -1136,23 +1170,25 @@ function computeStats() {
   // 이동수단: 타임라인에 기록된 활동이 있으면 그것을, 없으면 속도로 추정
   const acts = DATA.acts.filter(a => a.e >= rs && a.s <= re);
   const modes = new Map(), useActs = acts.length > 0;
+  const actFinder = () => { let i = 0; return t => { while (i < acts.length && acts[i].e < t) i++; return i < acts.length && acts[i].s <= t ? acts[i] : null; }; };
+  const findA = actFinder();
   const addMode = (m, ms, d) => { const o = modes.get(m) || { ms: 0, d: 0, n: 0 }; o.ms += ms; o.d += d; o.n++; modes.set(m, o); };
   if (useActs) for (const a of acts) addMode(MODE[a.type] || '기타', Math.min(a.e, re) - Math.max(a.s, rs), Math.max(0, distBetween(Math.max(a.s, rs), Math.min(a.e, re))));
   for (const t of trips) {
     const kmh = t.d / Math.max(1, t.e - t.s) * 3600;
     t.mode = guessMode(kmh); t.est = true;
     if (useActs) {
-      const mid = (t.s + t.e) / 2, a = acts.find(a => a.s <= mid && mid <= a.e);
+      const a = findA((t.s + t.e) / 2);
       if (a) { t.mode = MODE[a.type] || '기타'; t.est = false; }
     }
     if (!useActs) addMode(t.mode, t.e - t.s, t.d);
   }
 
   // 날짜별·수단 그룹별 거리
-  const dayMode = new Map();
+  const dayMode = new Map(), findB = actFinder();
   for (const t of trips) for (const [mt, d] of t.segs) {
     let m = t.mode;
-    if (useActs) { const a = acts.find(a => a.s <= mt && mt <= a.e); if (a) m = MODE[a.type] || '기타'; }
+    if (useActs) { const a = findB(mt); if (a) m = MODE[a.type] || '기타'; }
     const key = fmtDate(mt), o = dayMode.get(key) || {};
     const g = groupOf(m); o[g] = (o[g] || 0) + d; dayMode.set(key, o);
   }
@@ -1284,7 +1320,8 @@ function renderStats() {
   computeStats();
   const [rs, re] = range, S = ST;
   const nDays = Math.max(1, Math.round((re - rs) / 864e5));
-  const recDays = new Set(P.map(p => fmtDate(p.t))).size;
+  const tzo = new Date().getTimezoneOffset() * 60000;
+  const recDays = new Set(P.map(p => Math.floor((p.t - tzo) / 864e5))).size;
   $('stRange').textContent = `${fmtDT(rs)} ~ ${fmtDT(re)} (날짜는 ② 날짜에서 바꿀 수 있습니다)`;
   const dayArr = [...S.days.entries()].sort((a, b) => b[1] - a[1]);
   const longest = S.trips.slice().sort((a, b) => b.d - a.d)[0];
