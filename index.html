@@ -179,9 +179,9 @@
       </select>
       <label class="f" for="mapStyle" style="margin:0 6px 0 10px">지도</label>
       <select id="mapStyle">
-        <option value="rastertiles/voyager">컬러</option>
-        <option value="light_all">밝게</option>
-        <option value="dark_all">어둡게</option>
+        <option value="color">컬러</option>
+        <option value="light">밝게</option>
+        <option value="dark">어둡게</option>
       </select>
     </div>
     <label class="check"><input type="checkbox" id="skipIdle" checked> 머문 시간 빠르게</label>
@@ -253,7 +253,7 @@
     </div>
   </section>
 
-  <footer>계정도, 위치 권한도, 업로드도 필요하지 않습니다.<br>지도 데이터 © OpenStreetMap 기여자 · © CARTO</footer>
+  <footer>계정도, 위치 권한도, 업로드도 필요하지 않습니다.<br>지도 데이터 © OpenStreetMap 기여자</footer>
 </div>
 
 <script>
@@ -420,14 +420,13 @@ $('to4').onclick = () => go(4);
 $('to5').onclick = () => go(5);
 
 // ───────── 지도 ─────────
-let useOSM = false;
+// OpenStreetMap 기본 지도 (API 키 필요 없음). 밝게/어둡게는 색 필터로 만듦
 const OSM_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const TILE = s => useOSM ? OSM_URL : `https://{s}.basemaps.cartocdn.com/${s}/{z}/{x}/{y}{r}.png`;
+const FILTERS = { color: 'none', light: 'grayscale(1) brightness(1.08) contrast(.85)', dark: 'invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.6)' };
 const map = L.map('map', { preferCanvas: true }).setView([37.5665, 126.978], 12);
-const tiles = L.tileLayer(TILE($('mapStyle').value), { subdomains: 'abcd', maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(map);
-let tileOk = 0, tileBad = 0;
-tiles.on('tileload', () => tileOk++);
-tiles.on('tileerror', () => { if (++tileBad >= 4 && !tileOk && !useOSM) { useOSM = true; tiles.setUrl(OSM_URL); } });
+const tiles = L.tileLayer(OSM_URL, { maxZoom: 19, attribution: '&copy; OpenStreetMap 기여자' }).addTo(map);
+const applyMapStyle = () => { map.getPane('tilePane').style.filter = FILTERS[$('mapStyle').value] || 'none'; };
+applyMapStyle();
 const fullPath = L.polyline([], { color: '#8a99ab', weight: 3, opacity: .55 }).addTo(map);
 const trail = L.polyline([], { color: css('--route') || '#e8590c', weight: 5, opacity: .95 }).addTo(map);
 const visitLayer = L.layerGroup().addTo(map);
@@ -435,7 +434,7 @@ const searchLayer = L.layerGroup().addTo(map);
 const marker = L.circleMarker([0, 0], { radius: 9, color: '#fff', weight: 3, fillColor: css('--route') || '#e8590c', fillOpacity: 1 });
 $('vlen').onchange = () => $('vlen5').value = $('vlen').value;
 $('vlen5').onchange = () => $('vlen').value = $('vlen5').value;
-$('mapStyle').onchange = () => tiles.setUrl(TILE($('mapStyle').value));
+$('mapStyle').onchange = applyMapStyle;
 function fitPath() { if (P.length) map.fitBounds(fullPath.getBounds(), { padding: [30, 30], maxZoom: 15 }); }
 map.on('click', e => {
   setCenter(e.latlng.lat, e.latlng.lng, `지도에서 고른 곳 (${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)})`);
@@ -714,7 +713,7 @@ function tileImg(style, z, x, y) {
   if (!tileCache.has(key)) {
     const img = new Image(); img.crossOrigin = 'anonymous';
     img.ready = new Promise(res => { img.onload = () => res(true); img.onerror = () => res(false); setTimeout(() => res(false), 15000); });
-    img.src = useOSM ? `https://tile.openstreetmap.org/${z}/${x}/${y}.png` : `https://${'abcd'[(x + y) % 4]}.basemaps.cartocdn.com/${style}/${z}/${x}/${y}@2x.png`;
+    img.src = `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
     tileCache.set(key, img);
   }
   return tileCache.get(key);
@@ -736,7 +735,7 @@ async function recordVideo() {
   const q = $('quality').value;
   const [Wd, Ht, fps] = q === '480' ? [854, 480, 15] : q === '720' ? [1280, 720, 30] : q === 'sq' ? [720, 720, 30] : [720, 1280, 30];
   const secs = +$('vlen').value, N = secs * fps, style = $('mapStyle').value, follow = $('camera').value === 'follow';
-  const dark = style === 'dark_all';
+  const dark = style === 'dark';
   const btn = $('record'); btn.disabled = true;
   $('out').innerHTML = `<div class="stat" id="recStat">지도 준비 중…</div><div class="bar"><i id="recBar"></i></div>`;
   const canvas = document.createElement('canvas'); canvas.width = Wd; canvas.height = Ht;
@@ -787,7 +786,7 @@ async function recordVideo() {
     ctx.fillStyle = dark ? '#1b1f24' : '#eef0f2'; ctx.fillRect(0, 0, Wd, Ht);
     for (const [x, y] of tilesFor(cx, cy, z, Wd, Ht)) {
       const img = tileImg(style, z, x, y);
-      if (img && img.complete && img.naturalWidth) ctx.drawImage(img, Math.round(x * TS - ox), Math.round(y * TS - oy), TS, TS);
+      if (img && img.complete && img.naturalWidth) { ctx.filter = FILTERS[style] || 'none'; ctx.drawImage(img, Math.round(x * TS - ox), Math.round(y * TS - oy), TS, TS); ctx.filter = 'none'; }
     }
     ctx.lineJoin = ctx.lineCap = 'round';
     // 전체 경로(흐리게)
@@ -820,7 +819,7 @@ async function recordVideo() {
     // 진행 막대·출처
     ctx.fillStyle = route; ctx.fillRect(0, Ht - 4 * S, Wd * Math.min(k, N) / N, 4 * S);
     ctx.font = `${10 * S}px sans-serif`; ctx.fillStyle = dark ? 'rgba(255,255,255,.6)' : 'rgba(0,0,0,.55)'; ctx.textAlign = 'right';
-    ctx.fillText('© OpenStreetMap © CARTO', Wd - 8 * S, Ht - 10 * S); ctx.textAlign = 'left';
+    ctx.fillText('© OpenStreetMap', Wd - 8 * S, Ht - 10 * S); ctx.textAlign = 'left';
   }
 
   draw(0);
