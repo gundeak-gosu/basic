@@ -194,10 +194,12 @@
     <h2>방문 찾기</h2>
     <p class="lead">지도에서 장소를 누르거나 주소를 입력하고 반경을 정하면, 그곳에 언제 몇 시에 있었는지 보여 줍니다.</p>
     <div class="row">
-      <input type="text" id="placeQ" placeholder="예: 강남역 / 37.4979, 127.0276" aria-label="장소">
-      <button class="btn" id="placeGo" style="flex:0 0 auto">찾기</button>
+      <input type="search" id="placeQ" placeholder="예: 강남역 / 37.4979, 127.0276" aria-label="장소" enterkeyhint="search" autocomplete="off">
+      <button class="btn" id="placeClear" style="flex:0 0 auto" aria-label="지우기">✕</button>
+      <button class="btn primary" id="placeGo" style="flex:0 0 auto">찾기</button>
     </div>
     <div class="stat" id="placeStat">지도를 누르면 그 위치가 기준점이 됩니다.</div>
+    <div class="chips" id="placeList"></div>
     <div class="row">
       <div><label class="f" for="radius">반경 (m)</label><input type="number" id="radius" value="200" min="10" step="10"></div>
       <div><label class="f" for="minStay">최소 체류 (분)</label><input type="number" id="minStay" value="0" min="0" step="1"></div>
@@ -418,9 +420,14 @@ $('to4').onclick = () => go(4);
 $('to5').onclick = () => go(5);
 
 // ───────── 지도 ─────────
-const TILE = s => `https://{s}.basemaps.cartocdn.com/${s}/{z}/{x}/{y}{r}.png`;
+let useOSM = false;
+const OSM_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const TILE = s => useOSM ? OSM_URL : `https://{s}.basemaps.cartocdn.com/${s}/{z}/{x}/{y}{r}.png`;
 const map = L.map('map', { preferCanvas: true }).setView([37.5665, 126.978], 12);
 const tiles = L.tileLayer(TILE($('mapStyle').value), { subdomains: 'abcd', maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(map);
+let tileOk = 0, tileBad = 0;
+tiles.on('tileload', () => tileOk++);
+tiles.on('tileerror', () => { if (++tileBad >= 4 && !tileOk && !useOSM) { useOSM = true; tiles.setUrl(OSM_URL); } });
 const fullPath = L.polyline([], { color: '#8a99ab', weight: 3, opacity: .55 }).addTo(map);
 const trail = L.polyline([], { color: css('--route') || '#e8590c', weight: 5, opacity: .95 }).addTo(map);
 const visitLayer = L.layerGroup().addTo(map);
@@ -460,7 +467,7 @@ function setQuick(kind) {
   $('to').value = toLocalInput(kind === 'all' ? last + 60000 : endD.getTime());
   applyRange();
 }
-$('rangeChips').onclick = e => e.target.dataset.r && setQuick(e.target.dataset.r);
+$('rangeChips').onclick = e => { if (e.target.dataset.r) setQuick(e.target.dataset.r); };
 $('from').onchange = $('to').onchange = () => applyRange();
 
 function applyRange() {
@@ -584,17 +591,35 @@ async function findPlace() {
   const lower = q.toLowerCase();
   const hit = DATA.visits.find(v => v.name && v.name.toLowerCase().includes(lower));
   if (hit) { setCenter(hit.lat, hit.lng, `${hit.name} (내 타임라인)`); map.setView([hit.lat, hit.lng], 16); return runSearch(); }
-  $('placeStat').textContent = '주소 검색 중…';
+  $('placeStat').textContent = '장소 검색 중…';
+  $('placeList').innerHTML = '';
+  let found = [];
   try {
-    const res = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=ko&q=' + encodeURIComponent(q));
-    const arr = await res.json();
-    if (!arr.length) { $('placeStat').innerHTML = '<span class="err">그 이름의 장소를 찾지 못했습니다. 지도를 직접 눌러 보세요.</span>'; return; }
-    setCenter(+arr[0].lat, +arr[0].lon, arr[0].display_name);
-    map.setView([+arr[0].lat, +arr[0].lon], 16);
-    runSearch();
-  } catch (e) {
-    $('placeStat').innerHTML = '<span class="err">주소 검색이 되지 않았습니다. 지도를 누르거나 “위도, 경도”로 입력해 주세요.</span>';
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=6&accept-language=ko&q=' + encodeURIComponent(q));
+    if (r.ok) found = (await r.json()).map(x => ({ lat: +x.lat, lng: +x.lon, label: x.display_name }));
+  } catch (e) { /* 아래 대체 검색 */ }
+  if (!found.length) {
+    try {
+      const r = await fetch('https://photon.komoot.io/api/?limit=6&q=' + encodeURIComponent(q));
+      if (r.ok) found = (await r.json()).features.map(f => {
+        const p = f.properties || {};
+        return { lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0], label: [p.name, p.street, p.district, p.city, p.state, p.country].filter(Boolean).join(', ') };
+      });
+    } catch (e) { /* 둘 다 실패 */ }
   }
+  if (!found.length) { $('placeStat').innerHTML = '<span class="err">그 이름의 장소를 찾지 못했습니다. 동네 이름을 붙여 보거나(예: 역삼동 스타벅스) 지도를 직접 눌러 주세요.</span>'; return; }
+  const choose = i => {
+    const f = found[i];
+    setCenter(f.lat, f.lng, f.label);
+    [...$('placeList').children].forEach((b, j) => b.classList.toggle('on', j === i));
+    map.setView([f.lat, f.lng], 16);
+    runSearch();
+  };
+  if (found.length > 1) {
+    $('placeList').innerHTML = found.map((f, i) => `<button class="chip" data-i="${i}">${esc(f.label.length > 40 ? f.label.slice(0, 40) + '…' : f.label)}</button>`).join('');
+    $('placeList').onclick = e => { const b = e.target.closest('[data-i]'); if (b) choose(+b.dataset.i); };
+  }
+  choose(0);
 }
 function runSearch() {
   const out = $('searchOut');
@@ -663,7 +688,8 @@ function saveBlob(blob, name) {
   setTimeout(() => URL.revokeObjectURL(a.href), 60000);
 }
 $('placeGo').onclick = findPlace;
-$('placeQ').onkeydown = e => e.key === 'Enter' && findPlace();
+$('placeQ').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); findPlace(); } });
+$('placeClear').onclick = () => { $('placeQ').value = ''; $('placeList').innerHTML = ''; $('placeQ').focus(); };
 $('search').onclick = runSearch;
 $('inRange').onchange = () => center && runSearch();
 $('radiusChips').onclick = e => {
@@ -688,7 +714,7 @@ function tileImg(style, z, x, y) {
   if (!tileCache.has(key)) {
     const img = new Image(); img.crossOrigin = 'anonymous';
     img.ready = new Promise(res => { img.onload = () => res(true); img.onerror = () => res(false); setTimeout(() => res(false), 15000); });
-    img.src = `https://${'abcd'[(x + y) % 4]}.basemaps.cartocdn.com/${style}/${z}/${x}/${y}@2x.png`;
+    img.src = useOSM ? `https://tile.openstreetmap.org/${z}/${x}/${y}.png` : `https://${'abcd'[(x + y) % 4]}.basemaps.cartocdn.com/${style}/${z}/${x}/${y}@2x.png`;
     tileCache.set(key, img);
   }
   return tileCache.get(key);
