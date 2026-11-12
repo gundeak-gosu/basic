@@ -107,6 +107,12 @@
   .bar-row .tr { height: 10px; background: var(--soft); border-radius: 99px; overflow: hidden; }
   .bar-row .tr i { display: block; height: 100%; background: var(--route); border-radius: 99px; }
   .bar-row .v { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; text-align: right; white-space: nowrap; }
+  .bar-row .tr.stack { display: flex; }
+  .bar-row .tr.stack i { border-radius: 0; }
+  .bar-row .tr.stack i:first-child { border-radius: 99px 0 0 99px; }
+  .bar-row .tr.stack i:last-child { border-radius: 0 99px 99px 0; }
+  .bar-row .tr.stack i:only-child { border-radius: 99px; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: 0; }
   .hist { display: flex; align-items: flex-end; gap: 2px; height: 110px; border-bottom: 1px solid var(--line); }
   .hist div { flex: 1; background: var(--route); border-radius: 3px 3px 0 0; min-height: 1px; opacity: .85; }
   .hist-x { display: flex; gap: 2px; font-size: 10px; color: var(--muted); }
@@ -262,6 +268,7 @@
     <h3>요일별 이동</h3>
     <div class="bars" id="stWeek"></div>
     <h3 id="stDaysTitle">날짜별 이동거리</h3>
+    <div class="chips" id="stDayFilter" style="margin:0 0 10px"></div>
     <div class="bars" id="stDays"></div>
     <h3>방문한 지역·장소 순위</h3>
     <div class="row">
@@ -1077,6 +1084,16 @@ const MODE = { WALKING: '도보', ON_FOOT: '도보', RUNNING: '도보', HIKING: 
   IN_PASSENGER_VEHICLE: '자동차', IN_VEHICLE: '자동차', DRIVING: '자동차', IN_TAXI: '자동차', IN_CAR: '자동차', MOTORCYCLING: '오토바이',
   IN_BUS: '버스', IN_SUBWAY: '지하철', IN_TRAM: '지하철', IN_TRAIN: '기차', IN_HIGH_SPEED_TRAIN: '기차', FLYING: '비행기', IN_FERRY: '배', SAILING: '배' };
 const MODE_ICON = { 도보: '🚶', 자전거: '🚲', 자동차: '🚗', 버스: '🚌', 지하철: '🚇', 기차: '🚆', 비행기: '✈️', 배: '⛴️', 오토바이: '🛵', 기타: '·' };
+const GROUPS = [
+  { k: 'walk', name: '걷기', color: '#2f9e44', modes: ['도보'] },
+  { k: 'bike', name: '자전거', color: '#e8a400', modes: ['자전거'] },
+  { k: 'car', name: '차량', color: '#e8590c', modes: ['자동차', '오토바이'] },
+  { k: 'transit', name: '대중교통', color: '#1c7ed6', modes: ['버스', '지하철', '기차'] },
+  { k: 'far', name: '비행기·배', color: '#7048e8', modes: ['비행기', '배'] },
+  { k: 'etc', name: '기타', color: '#868e96', modes: ['기타'] },
+];
+const groupOf = m => (GROUPS.find(g => g.modes.includes(m)) || GROUPS[GROUPS.length - 1]).k;
+let dayFilter = 'all';
 const guessMode = kmh => kmh <= 7 ? '도보' : kmh <= 20 ? '자전거' : kmh <= 130 ? '자동차' : kmh <= 330 ? '기차' : '비행기';
 const fmtKm = m => { const k = m / 1000; return (k < 10 ? k.toFixed(1) : Math.round(k).toLocaleString()) + ' km'; };
 const fmtH = ms => fmtDur(ms) || '0분';
@@ -1111,8 +1128,8 @@ function computeStats() {
     const md = new Date(a.t + dt / 2);
     hours[md.getHours()] += dt; wk[md.getDay()] += dt; wkD[md.getDay()] += d;
     const k = fmtDate(md.getTime()); days.set(k, (days.get(k) || 0) + d);
-    if (cur && a.t - cur.e <= 10 * 60e3) { cur.e = b.t; cur.d += d; cur.lat1 = b.lat; cur.lng1 = b.lng; }
-    else { cur = { s: a.t, e: b.t, d, lat0: a.lat, lng0: a.lng, lat1: b.lat, lng1: b.lng }; trips.push(cur); }
+    if (cur && a.t - cur.e <= 10 * 60e3) { cur.e = b.t; cur.d += d; cur.lat1 = b.lat; cur.lng1 = b.lng; cur.segs.push([md.getTime(), d]); }
+    else { cur = { s: a.t, e: b.t, d, lat0: a.lat, lng0: a.lng, lat1: b.lat, lng1: b.lng, segs: [[md.getTime(), d]] }; trips.push(cur); }
   }
   const distBetween = (t0, t1) => C[Math.max(0, lowerBound(P, t1 + 1) - 1)] - C[Math.max(0, lowerBound(P, t0) )];
 
@@ -1131,6 +1148,14 @@ function computeStats() {
     if (!useActs) addMode(t.mode, t.e - t.s, t.d);
   }
 
+  // 날짜별·수단 그룹별 거리
+  const dayMode = new Map();
+  for (const t of trips) for (const [mt, d] of t.segs) {
+    let m = t.mode;
+    if (useActs) { const a = acts.find(a => a.s <= mt && mt <= a.e); if (a) m = MODE[a.type] || '기타'; }
+    const key = fmtDate(mt), o = dayMode.get(key) || {};
+    const g = groupOf(m); o[g] = (o[g] || 0) + d; dayMode.set(key, o);
+  }
   // 머문 곳 → 장소 묶음
   const stays = (V.length ? V : deriveStays(P)).map(v => ({ ...v, cs: Math.max(v.s, rs), ce: Math.min(v.e, re) })).filter(v => v.ce >= v.cs);
   const clusters = [], grid = new Map();
@@ -1150,7 +1175,7 @@ function computeStats() {
   for (const c of clusters) c.label = [...c.names.entries()].sort((a, b) => b[1] - a[1]).map(x => x[0])[0] || '';
   clusters.sort((a, b) => b.ms - a.ms);
   const home = clusters.find(c => c.label.startsWith('집')) || clusters[0];
-  ST = { trips, modes, useActs, totalD, moveMs, days, hours, wk, wkD, clusters, stays, home };
+  ST = { dayMode, trips, modes, useActs, totalD, moveMs, days, hours, wk, wkD, clusters, stays, home };
 }
 
 // 주소(지역 이름) 찾기: 카카오 → 안 되면 OpenStreetMap (1초에 1곳)
@@ -1293,18 +1318,35 @@ function renderStats() {
   const order = [1, 2, 3, 4, 5, 6, 0];
   $('stWeek').innerHTML = barList(order.map(d => ({ label: WD[d] + '요일', v: S.wk[d], d })), r => `${fmtH(S.wk[r.d])} · ${fmtKm(S.wkD[r.d])}`);
 
-  // 날짜별 (62일 넘으면 월별)
-  let rows = [...S.days.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1);
-  if (rows.length > 62) {
-    const mm = new Map(); for (const [k, v] of rows) mm.set(k.slice(0, 7), (mm.get(k.slice(0, 7)) || 0) + v);
-    rows = [...mm.entries()]; $('stDaysTitle').textContent = '월별 이동거리';
-  } else $('stDaysTitle').textContent = '날짜별 이동거리';
-  $('stDays').innerHTML = rows.length ? barList(rows.map(([k, v]) => ({ label: k.length > 7 ? k.slice(5) : k, v })), r => fmtKm(r.v)) : '<div class="stat">이동 기록이 없습니다.</div>';
-
+  renderDays();
   stShow = 20;
   renderPlaces();
   geocodeClusters();
 }
+function renderDays() {
+  // 날짜별 (62일 넘으면 월별), 수단 그룹별 색으로 나눔
+  let rows = [...ST.dayMode.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1);
+  if (rows.length > 62) {
+    const mm = new Map();
+    for (const [k, o] of rows) { const m = mm.get(k.slice(0, 7)) || {}; for (const g in o) m[g] = (m[g] || 0) + o[g]; mm.set(k.slice(0, 7), m); }
+    rows = [...mm.entries()]; $('stDaysTitle').textContent = '월별 이동거리';
+  } else $('stDaysTitle').textContent = '날짜별 이동거리';
+  const tot = {}; for (const [, o] of rows) for (const g in o) tot[g] = (tot[g] || 0) + o[g];
+  const used = GROUPS.filter(g => tot[g.k] > 0);
+  if (dayFilter !== 'all' && !tot[dayFilter]) dayFilter = 'all';
+  const all = Object.values(tot).reduce((a, b) => a + b, 0);
+  $('stDayFilter').innerHTML = `<button class="chip ${dayFilter === 'all' ? 'on' : ''}" data-g="all">전체 <small>${fmtKm(all)}</small></button>` +
+    used.map(g => `<button class="chip ${dayFilter === g.k ? 'on' : ''}" data-g="${g.k}"><span class="dot" style="background:${g.color}"></span>${g.name} <small>${fmtKm(tot[g.k])}</small></button>`).join('');
+  const show = dayFilter === 'all' ? used : used.filter(g => g.k === dayFilter);
+  const val = o => show.reduce((a, g) => a + (o[g.k] || 0), 0);
+  const max = Math.max(1, ...rows.map(([, o]) => val(o)));
+  $('stDays').innerHTML = rows.length ? rows.map(([k, o]) => {
+    const v = val(o);
+    const parts = show.filter(g => o[g.k] > 0).map(g => `<i style="width:${(o[g.k] / max * 100).toFixed(2)}%;background:${g.color}" title="${g.name} ${fmtKm(o[g.k])}"></i>`).join('');
+    return `<div class="bar-row"><span class="lb">${k.length > 7 ? k.slice(5) : k}</span><span class="tr stack">${parts}</span><span class="v">${v ? fmtKm(v) : '-'}</span></div>`;
+  }).join('') : '<div class="stat">이동 기록이 없습니다.</div>';
+}
+$('stDayFilter').onclick = e => { const b = e.target.closest('[data-g]'); if (!b) return; dayFilter = b.dataset.g; renderDays(); };
 ['stLevel', 'stSort', 'stNoHome'].forEach(id => $(id).addEventListener('change', () => { stShow = 20; renderPlaces(); }));
 $('stMore').onclick = () => { stShow += 30; renderPlaces(); };
 $('stCsv').onclick = () => {
